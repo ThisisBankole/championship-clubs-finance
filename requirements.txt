@@ -1,0 +1,67 @@
+# FastAPI and ASGI
+fastapi
+uvicorn[standard]
+gunicorn
+
+# Database
+sqlalchemy
+alembic
+asyncpg
+psycopg2-binary
+
+# Redis
+redis
+aioredis
+
+# Azure Services
+azure-search-documents
+azure-storage-blob
+azure-functions
+azure-identity
+azure-ai-inference
+azure-core
+openai
+
+# Companies House API
+requests
+aiohttp
+httpx
+
+# Data Processing
+pandas
+numpy
+openpyxl
+
+# PDF Processing
+PyPDF2
+pdfplumber
+pytesseract
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Validation & Serialization
+pydantic
+pydantic-settings
+
+# Monitoring & Logging
+structlog
+prometheus-client
+
+# Development & Testing
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+factory-boy
+
+# Code Quality
+black
+isort
+flake8
+mypy
+
+# Environment Management
+python-dotenv
