@@ -40,7 +40,7 @@ class NationalLeagueProcessor:
     {"club_name": "Swansea City", "company_number": "04056708", "legal_name": "SWANSEA CITY FOOTBALL CLUB LIMITED"},
     {"club_name": "Watford", "company_number": "00104194", "legal_name": "WATFORD ASSOCIATION FOOTBALL CLUB LIMITED(THE)"},
     {"club_name": "West Bromwich Albion", "company_number": "03295063", "legal_name": "WEST BROMWICH ALBION FOOTBALL CLUB LIMITED"},
-    {"club_name": "Wrexham", "company_number": "00124022", "legal_name": "WREXHAM ASSOCIATION FOOTBALL CLUB LIMITED(THE)"}
+    {"club_name": "Wrexham", "company_number": "07698872", "legal_name": "Wrexham AFC Limited"}
 ]
     
     def __init__(self):

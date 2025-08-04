@@ -6,6 +6,7 @@ from openai import AzureOpenAI
 import json
 import os
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,16 @@ class FinancialData(BaseModel):
     creditors_due_after_one_year: Optional[float] = None
     operating_profit: Optional[float] = None
     profit_loss_before_tax: Optional[float] = None
+    broadcasting_revenue: Optional[float] = None
+    commercial_revenue: Optional[float] = None
+    matchday_revenue: Optional[float] = None
+    player_trading_income: Optional[float] = None
+    player_wages: Optional[float] = None
+    player_amortization: Optional[float] = None
+    other_staff_costs: Optional[float] = None
+    stadium_costs: Optional[float] = None
+    administrative_expenses: Optional[float] = None
+    agent_fees: Optional[float] = None
 
 class RecordError(BaseModel):
     message: str
@@ -60,21 +71,143 @@ class RecordResult(BaseModel):
 class SkillResponse(BaseModel):
     values: List[RecordResult]
 
+
+def clean_ocr_text(text: str) -> str:
+    """
+    Clean OCR text to fix common formatting issues before GPT extraction
+    """
+    
+    # Remove excessive whitespace and newlines
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Fix common OCR issues
+    text = fix_number_formatting(text)
+    text = fix_financial_labels(text)
+    text = separate_concatenated_items(text)
+    
+    return text.strip()
+
+def fix_number_formatting(text: str) -> str:
+    """
+    Fix common number formatting issues in OCR text
+    """
+    
+    # Fix concatenated parentheses: "123,456( 789,012)" -> "123,456 (789,012)"
+    text = re.sub(r'(\d)(\()', r'\1 \2', text)
+    
+    # Fix missing spaces before parentheses in financial data
+    text = re.sub(r'(\d)\(', r'\1 (', text)
+    
+    # Fix concatenated numbers: "123,456789,012" -> "123,456 789,012"
+    text = re.sub(r'(\d{1,3}(?:,\d{3})*[^\s,\d])(\d)', r'\1 \2', text)
+    
+    # Add space after currency symbols
+    text = re.sub(r'£(\d)', r'£ \1', text)
+    
+    return text
+
+def fix_financial_labels(text: str) -> str:
+    """
+    Fix concatenated financial labels with numbers
+    """
+    
+    # Common financial terms that get stuck to numbers
+    financial_terms = [
+        'Cash at bank', 'Net assets', 'Total assets', 'Turnover', 'Revenue',
+        'Creditors', 'Profit', 'Loss', 'Tax', 'Interest', 'Broadcasting',
+        'Commercial', 'Matchday', 'Player', 'Wages', 'Transfer', 'Stadium'
+    ]
+    
+    for term in financial_terms:
+        # Fix cases like "Cash at bank123,456" -> "Cash at bank 123,456"
+        pattern = f'({re.escape(term)})(\d)'
+        text = re.sub(pattern, r'\1 \2', text, flags=re.IGNORECASE)
+        
+        # Fix cases like "123,456Cash at bank" -> "123,456 Cash at bank"  
+        pattern = f'(\d)({re.escape(term)})'
+        text = re.sub(pattern, r'\1 \2', text, flags=re.IGNORECASE)
+    
+    return text
+
+def separate_concatenated_items(text: str) -> str:
+    """
+    Separate concatenated financial statement items
+    """
+    
+    # Separate items that are commonly concatenated in OCR
+    # Example: "PROFIT BEFORE TAXATION3,334,238Interest receivable108,574"
+    
+    # Add space before capital letters that follow numbers
+    text = re.sub(r'(\d)([A-Z][a-z])', r'\1 \2', text)
+    
+    # Add space before common financial statement starts
+    financial_starts = ['PROFIT', 'LOSS', 'REVENUE', 'TURNOVER', 'CASH', 'NET', 'TOTAL', 'TAX']
+    for start in financial_starts:
+        text = re.sub(f'(\d)({start})', r'\1 \2', text)
+    
+    return text
+
+def extract_financial_context(text: str) -> str:
+    """
+    Extract the most relevant financial sections from the full text
+    """
+    
+    # Look for key financial statement sections
+    financial_keywords = [
+        'profit and loss', 'balance sheet', 'cash flow', 'income statement',
+        'revenue', 'turnover', 'broadcasting', 'commercial', 'matchday',
+        'player wages', 'staff costs', 'amortisation', 'transfer'
+    ]
+    
+    # Split text into chunks and rank by financial relevance
+    chunks = text.split('\n')
+    relevant_chunks = []
+    
+    for chunk in chunks:
+        if len(chunk.strip()) < 10:  # Skip very short lines
+            continue
+            
+        # Count financial keywords in this chunk
+        keyword_count = sum(1 for keyword in financial_keywords 
+                          if keyword.lower() in chunk.lower())
+        
+        # Include chunks with financial keywords or numbers
+        if keyword_count > 0 or re.search(r'\d{1,3}(?:,\d{3})*', chunk):
+            relevant_chunks.append(chunk)
+    
+    # Return most relevant sections (limit to avoid token limits)
+    return '\n'.join(relevant_chunks[:50])  # Top 50 most relevant lines
+
+
 def extract_text_from_sections(text_sections: List[TextSection]) -> str:
     """
-    Extract and combine text content from TextSection objects
+    Extract and combine text content from TextSection objects with cleaning
     """
     combined_text = ""
     
     for section in text_sections:
-        # section is already a TextSection object, just get the content
-        combined_text += section.content + " "
+        if section.content and section.content.strip():
+            # Skip sections that are just whitespace or coordinates
+            if len(section.content.strip()) > 10:  # Only meaningful content
+                combined_text += section.content + "\n"
     
-    return combined_text.strip()
+    # Apply comprehensive text cleaning
+    cleaned_text = clean_ocr_text(combined_text)
+    
+    # Extract most relevant financial sections
+    financial_text = extract_financial_context(cleaned_text)
+    
+    print(f"DEBUG - Original text: {len(combined_text)} chars")
+    print(f"DEBUG - Cleaned text: {len(cleaned_text)} chars") 
+    print(f"DEBUG - Financial text: {len(financial_text)} chars")
+    print(f"DEBUG - Sample cleaned text: {financial_text[:500]}...")
+    
+    return financial_text
 
 async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
     """
-    Use GPT-4.1 via Azure OpenAI to extract financial figures from club accounts text
+    Enhanced GPT-4.1 extraction for both basic and Championship-level football finance
     """
     
     if not API_KEY:
@@ -82,53 +215,97 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
         raise HTTPException(status_code=500, detail="Azure AI API key not configured")
     
     try:
-        print(f"DEBUG - Using GPT-4.1 for extraction from {len(text)} characters")
-        print(f"DEBUG - Text preview: {text[:300]}...")
+        print(f"DEBUG - Using enhanced football finance analysis for {len(text)} characters")
         
-        # Initialize Azure OpenAI client
         client = AzureOpenAI(
             api_version=API_VERSION,
             azure_endpoint=ENDPOINT,
             api_key=API_KEY,
         )
         
-        # Precise prompt for GPT-4.1
-        system_prompt = """You are a financial data extraction expert. Extract specific numbers from UK football club balance sheets and return only valid JSON."""
+        # Enhanced system prompt for football finance
+        system_prompt = """You are a football finance analyst specializing in UK football club financial statements. You understand both basic accounting and advanced football-specific financial categorization including player registrations, transfer accounting, and football revenue streams."""
         
-        user_prompt = f"""Extract financial numbers from this UK football club balance sheet text:
+        # Enhanced user prompt that extracts both basic and advanced metrics
+        user_prompt = f"""Extract financial data from this UK football club balance sheet and profit & loss statement as a football finance expert. Extract the key business performance indicators that investors and analysts use to evaluate football clubs.:
+        
+        
+        IMPORTANT: This text has OCR formatting issues. Look for patterns like:
+        - "Cash at bank123,456" means "Cash at bank: 123,456"
+        - "PROFIT BEFORE TAXATION3,334,238" means "PROFIT BEFORE TAXATION: 3,334,238"
+        - Numbers in parentheses are negative: "(20,895,263)" = -20,895,263
 
-{text[:1500]}
+{text[:2000]}
 
-Find these exact items and return ONLY this JSON format:
+Look for BOTH basic financial metrics AND football-specific categories:
+
+BASIC METRICS:
+- Cash at bank/Cash and cash equivalents
+- Net assets/Net liabilities  
+- Total assets
+- Creditors due within one year
+- Turnover/Revenue
+- Operating profit
+
+FOOTBALL-SPECIFIC METRICS:
+- Broadcasting revenue: "Central distributions", "EFL payments", "Media rights", "Parachute payments"
+- Commercial revenue: "Sponsorship", "Commercial partnerships", "Advertising"
+- Matchday revenue: "Gate receipts", "Season tickets", "Match day income"
+- Player trading income: "Profit on disposal of players' registrations", "Transfer fees"
+- Player wages: "Players' remuneration", "Playing staff salaries"
+- Player amortization: "Amortisation of players' registrations"
+- Other staff costs: "Administrative staff", "Management" (exclude players)
+- Stadium costs: "Ground expenses", "Stadium maintenance"
+- Administrative expenses: "Professional fees", "Travel", "Insurance"
+- Agent fees: "Agent commissions", "Intermediary fees"
+
+FOOTBALL BUSINESS INTELLIGENCE:
+- Championship clubs typically receive £7-12M broadcasting (unless parachute payments = £30-40M)
+- Player wages usually 60-80% of total revenue
+- Transfer profits can be £0-50M+ in a single year
+- Matchday revenue depends on stadium size (10k-40k capacity)
+
+EXAMPLES FROM REAL ACCOUNTS:
+- "Central distributions from The Football League £8.2M" = Broadcasting Revenue
+- "Amortisation of players' registrations £3.1M" = Player Amortization  
+- "Profit on disposal of registrations £15.3M" = Player Trading Income
+- "Players' remuneration £22.8M" = Player Wages
+
+Return this exact JSON format:
 {{
-    "cash_at_bank": number_or_null,
-    "net_assets": number_or_null,
-    "total_assets": number_or_null,
-    "creditors_due_within_one_year": number_or_null,
+    "revenue": number_or_null,
     "turnover": number_or_null,
-    "operating_profit": number_or_null
+    "total_assets": number_or_null,
+    "total_liabilities": number_or_null,
+    "net_assets": number_or_null,
+    "cash_at_bank": number_or_null,
+    "cash_and_cash_equivalents": number_or_null,
+    "creditors_due_within_one_year": number_or_null,
+    "creditors_due_after_one_year": number_or_null,
+    "operating_profit": number_or_null,
+    "profit_loss_before_tax": number_or_null,
+    "broadcasting_revenue": number_or_null,
+    "commercial_revenue": number_or_null,
+    "matchday_revenue": number_or_null,
+    "player_trading_income": number_or_null,
+    "player_wages": number_or_null,
+    "player_amortization": number_or_null,
+    "other_staff_costs": number_or_null,
+    "stadium_costs": number_or_null,
+    "administrative_expenses": number_or_null,
+    "agent_fees": number_or_null
 }}
+CRITICAL: Think like a football investor analyzing a football business, not a generic accountant. Use football industry knowledge to interpret accounts correctly.
 
-Rules:
-- Look for: "Cash at bank", "Net assets", "Total assets", "Creditors amounts falling due", "Turnover", "Operating profit/loss"
-- Numbers only (no £, commas): "12,345" becomes 12345
-- Parentheses mean negative: "(1,788,978)" becomes -1788978
-- Return null if not found
-- Return ONLY the JSON, no explanation"""
+Rules: Numbers only (no £, commas). Parentheses = negative. null if not found."""
 
         response = client.chat.completions.create(
             messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
-            max_completion_tokens=300,
-            temperature=0.0,  # Very deterministic for consistent extraction
+            max_completion_tokens=600, 
+            temperature=0.0,
             top_p=1.0,
             frequency_penalty=0.0,
             presence_penalty=0.0,
@@ -136,20 +313,20 @@ Rules:
         )
         
         content = response.choices[0].message.content.strip()
-        print(f"DEBUG - GPT-4.1 response: '{content}'")
+        print(f"DEBUG - Enhanced GPT-4.1 response: '{content}'")
         
         # Extract and parse JSON
         if '{' in content and '}' in content:
             json_start = content.find('{')
             json_end = content.rfind('}') + 1
             json_content = content[json_start:json_end]
-            print(f"DEBUG - Extracted JSON: '{json_content}'")
             
             financial_dict = json.loads(json_content)
-            print(f"DEBUG - Parsed successfully: {financial_dict}")
+            print(f"DEBUG - Parsed enhanced financial data: {financial_dict}")
             
-            # Map to all FinancialData fields
+            # Map to ALL FinancialData fields (both old and new)
             result = FinancialData(
+                # Original fields
                 revenue=financial_dict.get('revenue'),
                 turnover=financial_dict.get('turnover'),
                 total_assets=financial_dict.get('total_assets'),
@@ -160,7 +337,19 @@ Rules:
                 creditors_due_within_one_year=financial_dict.get('creditors_due_within_one_year'),
                 creditors_due_after_one_year=financial_dict.get('creditors_due_after_one_year'),
                 operating_profit=financial_dict.get('operating_profit'),
-                profit_loss_before_tax=financial_dict.get('profit_loss_before_tax')
+                profit_loss_before_tax=financial_dict.get('profit_loss_before_tax'),
+                
+                # New Championship fields
+                broadcasting_revenue=financial_dict.get('broadcasting_revenue'),
+                commercial_revenue=financial_dict.get('commercial_revenue'),
+                matchday_revenue=financial_dict.get('matchday_revenue'),
+                player_trading_income=financial_dict.get('player_trading_income'),
+                player_wages=financial_dict.get('player_wages'),
+                player_amortization=financial_dict.get('player_amortization'),
+                other_staff_costs=financial_dict.get('other_staff_costs'),
+                stadium_costs=financial_dict.get('stadium_costs'),
+                administrative_expenses=financial_dict.get('administrative_expenses'),
+                agent_fees=financial_dict.get('agent_fees')
             )
             
             return result
@@ -172,15 +361,14 @@ Rules:
         print(f"DEBUG - JSON parsing error: {e}")
         return FinancialData()
     except Exception as e:
-        print(f"DEBUG - GPT-4.1 error: {type(e).__name__}: {e}")
+        print(f"DEBUG - Enhanced extraction error: {type(e).__name__}: {e}")
         return FinancialData()
     finally:
-        # Close the client if it was created
         try:
             client.close()
         except:
             pass
-
+        
 @router.post("/extract-financials", response_model=SkillResponse)
 async def extract_financials(request: SkillRequest):
     """
@@ -218,6 +406,17 @@ async def extract_financials(request: SkillRequest):
                 errors=[RecordError(message="No text content provided")]
             ))
             continue
+        
+      
+        if text_content and (text_content.count('\n') > len(text_content) * 0.8 or len(text_content.strip()) < 100):
+            print(f"DEBUG - Content appears to be mostly whitespace/newlines, trying text_sections fallback")
+            if value.data.text_sections:
+                print(f"DEBUG - Attempting fallback extraction from {len(value.data.text_sections)} text sections")
+                text_content = extract_text_from_sections(value.data.text_sections)
+                print(f"DEBUG - Fallback extracted {len(text_content)} characters")
+                print(f"DEBUG - Fallback preview: {text_content[:200]}...")
+            else:
+                print(f"DEBUG - No text_sections available for fallback")
         
         if not text_content.strip():
             print(f"DEBUG - Empty text content for {record_id}")
