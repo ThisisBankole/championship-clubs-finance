@@ -51,6 +51,7 @@ services:
       - DATABASE_URL=postgresql://nlf_user:nlf_password@postgres:5432/national_league_finance
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=development
+      - API_BASE_URL=https://8397c48c8abf.ngrok-free.app 
     ports:
       - "8000:8000"
     volumes:

@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -72,6 +71,49 @@ class SkillResponse(BaseModel):
     values: List[RecordResult]
 
 
+def remove_ocr_artifacts(text: str) -> str:
+    """
+    Remove OCR scanning artifacts and metadata - THIS WAS MISSING!
+    """
+    
+    # Remove coordinate/metadata artifacts
+    text = re.sub(r'\{[^}]*\}', '', text)  # Remove JSON objects
+    text = re.sub(r'boundingPolygons.*?\]\]', '', text)  # Remove coordinates
+    text = re.sub(r'pageNumber.*?\d+', '', text)  # Remove page references
+    text = re.sub(r'ordinalPosition.*?\d+', '', text)  # Remove position data
+    text = re.sub(r'locationMetadata.*?sections', '', text)  # Remove location data
+    
+    # Remove common OCR scanning artifacts
+    text = re.sub(r'FRIDAY\*[A-Z0-9\*\[\]]+', '', text)  # Remove scan codes
+    text = re.sub(r'COMPANIES HOUSE#\d+', '', text)  # Remove filing references
+    text = re.sub(r'A\d+\s+\d{2}/\d{2}/\d{4}', '', text)  # Remove date stamps
+    
+    # Remove duplicate document headers
+    text = re.sub(r'(WEST BROMWICH ALBION FOOTBALL CLUB LIMITED\s*){2,}', 
+                  'WEST BROMWICH ALBION FOOTBALL CLUB LIMITED ', text)
+    
+    return text
+
+def clean_company_info(text: str) -> str:
+    """
+    Clean up director names and company information - THIS WAS MISSING!
+    """
+    
+    # Fix concatenated director names: "DirectorsM MilesS Patel" -> "Directors: M Miles, S Patel"
+    text = re.sub(r'Directors([A-Z][a-z]+(?:[A-Z][a-z]+)*)', 
+                  lambda m: f"Directors: {' '.join(re.findall(r'[A-Z][a-z]+', m.group(1)))}", text)
+    
+    # Fix company number formatting
+    text = re.sub(r'Company number(\d+)', r'Company number: \1', text)
+    
+    # Fix address formatting: remove excessive concatenation
+    text = re.sub(r'United Kingdom([A-Z0-9 ]+)', r'United Kingdom \1', text)
+    
+    # Clean up audit information
+    text = re.sub(r'Auditor([A-Z])', r'Auditor: \1', text)
+    
+    return text
+
 def clean_ocr_text(text: str) -> str:
     """
     Clean OCR text to fix common formatting issues before GPT extraction
@@ -81,10 +123,16 @@ def clean_ocr_text(text: str) -> str:
     text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
     text = re.sub(r'\s+', ' ', text)
     
+    # ENHANCED: Remove OCR artifacts and metadata first
+    text = remove_ocr_artifacts(text)
+    
     # Fix common OCR issues
     text = fix_number_formatting(text)
     text = fix_financial_labels(text)
     text = separate_concatenated_items(text)
+    
+    # ENHANCED: Clean up company info
+    text = clean_company_info(text)
     
     return text.strip()
 
@@ -116,13 +164,14 @@ def fix_financial_labels(text: str) -> str:
     financial_terms = [
         'Cash at bank', 'Net assets', 'Total assets', 'Turnover', 'Revenue',
         'Creditors', 'Profit', 'Loss', 'Tax', 'Interest', 'Broadcasting',
-        'Commercial', 'Matchday', 'Player', 'Wages', 'Transfer', 'Stadium'
+        'Commercial', 'Matchday', 'Player', 'Wages', 'Transfer', 'Stadium',
+        'Company number', 'Registration number'  # Added more terms
     ]
     
     for term in financial_terms:
-        # Fix cases like "Cash at bank123,456" -> "Cash at bank 123,456"
+        # Fix cases like "Cash at bank123,456" -> "Cash at bank: 123,456"
         pattern = f'({re.escape(term)})(\d)'
-        text = re.sub(pattern, r'\1 \2', text, flags=re.IGNORECASE)
+        text = re.sub(pattern, r'\1: \2', text, flags=re.IGNORECASE)
         
         # Fix cases like "123,456Cash at bank" -> "123,456 Cash at bank"  
         pattern = f'(\d)({re.escape(term)})'
@@ -146,6 +195,9 @@ def separate_concatenated_items(text: str) -> str:
     for start in financial_starts:
         text = re.sub(f'(\d)({start})', r'\1 \2', text)
     
+    # Fix concatenated page references
+    text = re.sub(r'(\w)(Page\s*\d+)', r'\1 \2', text, flags=re.IGNORECASE)
+    
     return text
 
 def extract_financial_context(text: str) -> str:
@@ -157,7 +209,8 @@ def extract_financial_context(text: str) -> str:
     financial_keywords = [
         'profit and loss', 'balance sheet', 'cash flow', 'income statement',
         'revenue', 'turnover', 'broadcasting', 'commercial', 'matchday',
-        'player wages', 'staff costs', 'amortisation', 'transfer'
+        'player wages', 'staff costs', 'amortisation', 'transfer',
+        'cash at bank', 'net assets', 'creditors', 'liabilities'  # Added more keywords
     ]
     
     # Split text into chunks and rank by financial relevance
@@ -177,7 +230,13 @@ def extract_financial_context(text: str) -> str:
             relevant_chunks.append(chunk)
     
     # Return most relevant sections (limit to avoid token limits)
-    return '\n'.join(relevant_chunks[:50])  # Top 50 most relevant lines
+    financial_text = '\n'.join(relevant_chunks[:100])  # Increased to 100 lines
+    
+    # If we didn't find much financial content, return cleaned original
+    if len(financial_text) < 500:
+        return text[:3000]  # First 3000 chars of cleaned text
+    
+    return financial_text
 
 
 def extract_text_from_sections(text_sections: List[TextSection]) -> str:
@@ -227,8 +286,7 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
         system_prompt = """You are a football finance analyst specializing in UK football club financial statements. You understand both basic accounting and advanced football-specific financial categorization including player registrations, transfer accounting, and football revenue streams."""
         
         # Enhanced user prompt that extracts both basic and advanced metrics
-        user_prompt = f"""Extract financial data from this UK football club balance sheet and profit & loss statement as a football finance expert. Extract the key business performance indicators that investors and analysts use to evaluate football clubs.:
-        
+        user_prompt = f"""Extract financial data from this UK football club balance sheet and profit & loss statement as a football finance expert. Extract the key business performance indicators that investors and analysts use to evaluate football clubs:
         
         IMPORTANT: This text has OCR formatting issues. Look for patterns like:
         - "Cash at bank123,456" means "Cash at bank: 123,456"
@@ -295,6 +353,7 @@ Return this exact JSON format:
     "administrative_expenses": number_or_null,
     "agent_fees": number_or_null
 }}
+
 CRITICAL: Think like a football investor analyzing a football business, not a generic accountant. Use football industry knowledge to interpret accounts correctly.
 
 Rules: Numbers only (no £, commas). Parentheses = negative. null if not found."""
@@ -407,7 +466,7 @@ async def extract_financials(request: SkillRequest):
             ))
             continue
         
-      
+        # ENHANCED: Fix for West Brom whitespace issue
         if text_content and (text_content.count('\n') > len(text_content) * 0.8 or len(text_content.strip()) < 100):
             print(f"DEBUG - Content appears to be mostly whitespace/newlines, trying text_sections fallback")
             if value.data.text_sections:

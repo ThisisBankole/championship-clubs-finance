@@ -11,6 +11,8 @@ from app.services.companies_house.processor import NationalLeagueProcessor
 from app.services.search_service import FinancialSearchService
 from app.api.endpoints import skillset_endpoints
 from app.api.endpoints import financial_extraction
+from app.api.endpoints import search_management
+
 
 logger = structlog.get_logger()
 
@@ -27,6 +29,12 @@ api_router.include_router(
     financial_extraction.router,
     prefix="/financial-extraction",
     tags=["financial-extraction"]
+)
+
+api_router.include_router(
+    search_management.router,
+    prefix="/search-management",
+    tags=["search-management"]
 )
 
 

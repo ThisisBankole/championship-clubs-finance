@@ -21,6 +21,8 @@ azure-identity
 azure-ai-inference
 azure-core
 openai
+azure-search-documents
+azure-core
 
 # Companies House API
 requests
