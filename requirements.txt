@@ -23,6 +23,10 @@ azure-core
 openai
 azure-search-documents
 azure-core
+azure-ai-documentintelligence
+
+python-multipart
+pillow
 
 # Companies House API
 requests

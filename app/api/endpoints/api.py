@@ -12,6 +12,7 @@ from app.services.search_service import FinancialSearchService
 from app.api.endpoints import skillset_endpoints
 from app.api.endpoints import financial_extraction
 from app.api.endpoints import search_management
+from app.api.endpoints import comprehensive_skillset
 
 
 logger = structlog.get_logger()
@@ -35,6 +36,12 @@ api_router.include_router(
     search_management.router,
     prefix="/search-management",
     tags=["search-management"]
+)
+
+api_router.include_router(
+    comprehensive_skillset.router,
+    prefix="/skillsets",
+    tags=["comprehensive-skillset"]
 )
 
 

@@ -147,7 +147,7 @@ class TextCleaningService:
     def process_azure_search_request(self, request_data: Dict) -> Dict:
         """
         Process Azure AI Search skillset request format
-        Transforms JSON text sections into clean, readable text
+        FIXED: Proper Web API skill response format for Azure AI Search
         """
         values = request_data.get('values', [])
         results = []
@@ -161,6 +161,7 @@ class TextCleaningService:
                 data.get('text_sections_content', []) or 
                 data.get('text_sections', []) or
                 data.get('text', []) or
+                data.get('content', []) or
                 []
             )
             
@@ -176,26 +177,20 @@ class TextCleaningService:
                                  record_id=record_id,
                                  available_fields=list(data.keys()))
                     
+                    # FIXED: Proper Web API skill format with flat output
                     results.append({
                         "recordId": record_id,
                         "data": {
-                            "cleaned_text": "",
-                            "preview": "",
-                            "summary": {
-                                "total_sections_processed": 0,
-                                "text_length": 0,
-                                "has_income_statement": False,
-                                "has_balance_sheet": False,
-                                "has_cash_flow": False,
-                                "has_directors_report": False,
-                                "error": f"No text in fields: {list(data.keys())}"
-                            }
+                            "cleaned_text": "",  # Always provide the expected output field
+                            "text_quality_score": 0.0,
+                            "sections_processed": 0,
+                            "has_financial_content": False
                         },
                         "errors": [],  # No errors - just empty data
                         "warnings": [{"message": f"No text content in available fields: {list(data.keys())}"}]
                     })
                     continue
-                
+            
                 # Extract text from JSON sections
                 combined_text = self.extract_text_from_json_sections(text_sections)
                 
@@ -205,29 +200,45 @@ class TextCleaningService:
                 # Analyze document structure
                 sections = self._extract_sections(cleaned_text)
                 
-                # Create processing summary
-                summary = {
-                    "total_sections_processed": len([s for s in text_sections if len(str(s).strip()) > 10]),
-                    "text_length": len(cleaned_text),
-                    **sections
-                }
-                
-                # Prepare successful result
+                # Calculate text quality metrics
+                quality_score = self._calculate_text_quality(cleaned_text)
+            
+                # FIXED: Return flat fields that match skillset output expectations
                 result = {
                     "recordId": record_id,
                     "data": {
+                        # PRIMARY OUTPUT: This is what the financial extraction skill needs
                         "cleaned_text": cleaned_text,
-                        "preview": cleaned_text[:1000] if cleaned_text else "",
-                        "summary": summary
+                        
+                        # SECONDARY OUTPUTS: Useful metadata for monitoring
+                        "text_quality_score": quality_score,
+                        "sections_processed": len([s for s in text_sections if len(str(s).strip()) > 10]),
+                        "original_text_length": len(combined_text),
+                        "cleaned_text_length": len(cleaned_text),
+                        
+                        # BOOLEAN FLAGS: Easy filtering/monitoring in index
+                        "has_financial_content": quality_score > 0.3,
+                        "has_income_statement": sections.get("has_income_statement", False),
+                        "has_balance_sheet": sections.get("has_balance_sheet", False),
+                        "has_cash_flow": sections.get("has_cash_flow", False),
+                        "has_directors_report": sections.get("has_directors_report", False),
+                        
+                        # PREVIEW: For debugging and validation
+                        "text_preview": cleaned_text[:500] if cleaned_text else ""
                     },
                     "errors": [],
                     "warnings": []
                 }
-                
+            
                 # Add warnings for potential issues (but not errors)
-                if len(cleaned_text) < 100:
+                if len(cleaned_text) < 200:
                     result["warnings"].append({
                         "message": f"Very little text extracted ({len(cleaned_text)} chars)"
+                    })
+                
+                if quality_score < 0.2:
+                    result["warnings"].append({
+                        "message": f"Low text quality score: {quality_score:.2f}"
                     })
                 
                 if not any(sections.values()):
@@ -240,23 +251,62 @@ class TextCleaningService:
                 logger.info("Successfully processed text cleaning",
                            record_id=record_id,
                            text_length=len(cleaned_text),
+                           quality_score=quality_score,
                            has_financial_sections=any(sections.values()))
-                
+            
             except Exception as e:
                 logger.error("Text cleaning failed for record",
                            record_id=record_id,
                            error=str(e))
                 
-                # Return error result (no data when there's an error)
+                # FIXED: Return proper error format
                 results.append({
                     "recordId": record_id,
-                    "data": {},  # Empty data object when there's an error
+                    "data": {
+                        "cleaned_text": "",  # Always provide expected output field
+                        "text_quality_score": 0.0,
+                        "sections_processed": 0,
+                        "has_financial_content": False
+                    },
                     "errors": [{"message": f"Text cleaning failed: {str(e)}"}],
                     "warnings": []
                 })
-        
+    
         logger.info("Completed text cleaning batch",
                    total_records=len(values),
                    successful_records=len([r for r in results if not r.get('errors')]))
         
         return {"values": results}
+
+    def _calculate_text_quality(self, text: str) -> float:
+        """
+        Calculate a quality score for the cleaned text (0.0 to 1.0)
+        Higher scores indicate better financial content
+        """
+        if not text:
+            return 0.0
+        
+        score = 0.0
+        
+        # Financial keywords presence (0.0 to 0.4)
+        financial_keywords = [
+            'turnover', 'revenue', 'profit', 'loss', 'assets', 'liabilities',
+            'cash', 'bank', 'creditors', 'broadcasting', 'commercial', 'matchday',
+            'player', 'wages', 'stadium', 'balance sheet', 'income statement'
+        ]
+        
+        text_lower = text.lower()
+        keyword_matches = sum(1 for keyword in financial_keywords if keyword in text_lower)
+        score += min(keyword_matches / len(financial_keywords), 0.4)
+        
+        # Number presence (0.0 to 0.3)
+        number_patterns = len(re.findall(r'£?\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?', text))
+        score += min(number_patterns / 20, 0.3)  # Normalize to max 0.3
+        
+        # Text structure (0.0 to 0.3)
+        has_proper_sections = any(section in text_lower for section in 
+                                 ['balance sheet', 'profit and loss', 'cash flow'])
+        if has_proper_sections:
+            score += 0.3
+        
+        return min(score, 1.0)

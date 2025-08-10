@@ -51,7 +51,18 @@ services:
       - DATABASE_URL=postgresql://nlf_user:nlf_password@postgres:5432/national_league_finance
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=development
-      - API_BASE_URL=https://8397c48c8abf.ngrok-free.app 
+      - API_BASE_URL=https://1917752e6d5f.ngrok-free.app 
+
+      - AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=https://club-fin.cognitiveservices.azure.com/
+      - AZURE_DOCUMENT_INTELLIGENCE_KEY=8vzFMqF76X6evFtEqakueTsSxBU6JidGPKnQGJfKPFlvNhKVOySCJQQJ99BHAC5RqLJXJ3w3AAALACOGle1M
+      - MAX_DOCUMENT_SIZE_MB=50
+      - PROCESSING_TIMEOUT_SECONDS=300
+      - ENABLE_FALLBACK_PROCESSING=true
+      - ENABLE_TABLE_FORMATTING=true
+      - MIN_TEXT_QUALITY_SCORE=0.2
+      - MIN_FINANCIAL_CONTENT_LENGTH=500
+
+
     ports:
       - "8000:8000"
     volumes:

@@ -79,12 +79,13 @@ async def clean_text_sections_skill(request_data: Dict[str, Any]):
         logger.error("Text section cleaning failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-# UPDATED: Simple financial extraction for clean text input
+
+
 @router.post("/extract-financials-simple")
 async def extract_financials_simple_skill(request_data: Dict[str, Any]):
     """
     Azure AI Search Custom Web API Skill
-    Extract financials from clean text (from Document Extraction skill)
+    Extract financials from clean text (from Text Cleaning skill)
     """
     try:
         from app.api.endpoints.financial_extraction import extract_financial_metrics_with_gpt4
@@ -96,57 +97,129 @@ async def extract_financials_simple_skill(request_data: Dict[str, Any]):
             record_id = record.get('recordId', '')
             data = record.get('data', {})
             
-            # Get clean text from Document Extraction skill
-            text_content = data.get('text', '') or data.get('content', '') or data.get('extracted_content', '')
+            # FIXED: Get clean text from Text Cleaning skill output
+            # The text cleaning skill outputs 'cleaned_text', not 'text' or 'content'
+            text_content = data.get('cleaned_text', '')
             
-            logger.info("Processing financial extraction from clean text", 
+            logger.info("Processing financial extraction from cleaned text", 
                        record_id=record_id,
-                       text_length=len(text_content))
+                       text_length=len(text_content),
+                       available_fields=list(data.keys()))
             
             try:
                 if text_content and len(text_content.strip()) > 50:
                     # Extract financials using your existing GPT-4 function
                     financial_data = await extract_financial_metrics_with_gpt4(text_content)
                     
-                    # Convert Pydantic model to dict
-                    financial_dict = financial_data.dict()
-                    
-                    # Remove None values to keep response clean
-                    financial_dict = {k: v for k, v in financial_dict.items() if v is not None}
-                    
+                    # FIXED: Return data in the exact format your indexer expects
                     results.append({
                         "recordId": record_id,
-                        "data": financial_dict,
+                        "data": {
+                            # Convert FinancialData object to dict for proper output mapping
+                            "revenue": financial_data.revenue,
+                            "turnover": financial_data.turnover,
+                            "total_assets": financial_data.total_assets,
+                            "total_liabilities": financial_data.total_liabilities,
+                            "net_assets": financial_data.net_assets,
+                            "cash_at_bank": financial_data.cash_at_bank,
+                            "cash_and_cash_equivalents": financial_data.cash_and_cash_equivalents,
+                            "creditors_due_within_one_year": financial_data.creditors_due_within_one_year,
+                            "creditors_due_after_one_year": financial_data.creditors_due_after_one_year,
+                            "operating_profit": financial_data.operating_profit,
+                            "profit_loss_before_tax": financial_data.profit_loss_before_tax,
+                            "broadcasting_revenue": financial_data.broadcasting_revenue,
+                            "commercial_revenue": financial_data.commercial_revenue,
+                            "matchday_revenue": financial_data.matchday_revenue,
+                            "player_trading_income": financial_data.player_trading_income,
+                            "player_wages": financial_data.player_wages,
+                            "player_amortization": financial_data.player_amortization,
+                            "other_staff_costs": financial_data.other_staff_costs,
+                            "stadium_costs": financial_data.stadium_costs,
+                            "administrative_expenses": financial_data.administrative_expenses,
+                            "agent_fees": financial_data.agent_fees
+                        },
                         "errors": [],
                         "warnings": []
                     })
                     
                     logger.info("Successfully extracted financial data", 
                                record_id=record_id,
-                               extracted_fields=len(financial_dict))
+                               extracted_fields=len([v for v in financial_data.__dict__.values() if v is not None]))
+                    
                 else:
-                    # No sufficient text content
+                    # Handle insufficient text case
+                    logger.warning("Insufficient text for extraction", 
+                                 record_id=record_id,
+                                 text_length=len(text_content))
+                    
                     results.append({
                         "recordId": record_id,
-                        "data": {},  # Empty data, no errors
+                        "data": {
+                            # Return null values for all fields when insufficient text
+                            "revenue": None,
+                            "turnover": None,
+                            "total_assets": None,
+                            "total_liabilities": None,
+                            "net_assets": None,
+                            "cash_at_bank": None,
+                            "cash_and_cash_equivalents": None,
+                            "creditors_due_within_one_year": None,
+                            "creditors_due_after_one_year": None,
+                            "operating_profit": None,
+                            "profit_loss_before_tax": None,
+                            "broadcasting_revenue": None,
+                            "commercial_revenue": None,
+                            "matchday_revenue": None,
+                            "player_trading_income": None,
+                            "player_wages": None,
+                            "player_amortization": None,
+                            "other_staff_costs": None,
+                            "stadium_costs": None,
+                            "administrative_expenses": None,
+                            "agent_fees": None
+                        },
                         "errors": [],
-                        "warnings": [{"message": f"Insufficient text content ({len(text_content)} chars)"}]
+                        "warnings": [{"message": f"Insufficient text for extraction ({len(text_content)} chars)"}]
                     })
                     
             except Exception as e:
-                logger.error("Financial extraction failed", record_id=record_id, error=str(e))
+                logger.error("Financial extraction failed for record",
+                           record_id=record_id,
+                           error=str(e))
                 
-                # Return empty result on error (no data + errors rule)
                 results.append({
                     "recordId": record_id,
-                    "data": {},
-                    "errors": [],
-                    "warnings": [{"message": f"Extraction failed: {str(e)}"}]
+                    "data": {
+                        # Return null values when extraction fails
+                        "revenue": None,
+                        "turnover": None,
+                        "total_assets": None,
+                        "total_liabilities": None,
+                        "net_assets": None,
+                        "cash_at_bank": None,
+                        "cash_and_cash_equivalents": None,
+                        "creditors_due_within_one_year": None,
+                        "creditors_due_after_one_year": None,
+                        "operating_profit": None,
+                        "profit_loss_before_tax": None,
+                        "broadcasting_revenue": None,
+                        "commercial_revenue": None,
+                        "matchday_revenue": None,
+                        "player_trading_income": None,
+                        "player_wages": None,
+                        "player_amortization": None,
+                        "other_staff_costs": None,
+                        "stadium_costs": None,
+                        "administrative_expenses": None,
+                        "agent_fees": None
+                    },
+                    "errors": [{"message": f"Extraction failed: {str(e)}"}],
+                    "warnings": []
                 })
         
         logger.info("Completed financial extraction batch",
                    total_records=len(values),
-                   successful_extractions=len([r for r in results if r.get('data')]))
+                   successful_extractions=len([r for r in results if not r.get('errors')]))
         
         return {"values": results}
         
@@ -154,33 +227,49 @@ async def extract_financials_simple_skill(request_data: Dict[str, Any]):
         logger.error("Financial extraction skill failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
     
+    
+@router.post("/extract-financials-from-text-sections")
+async def extract_financials_from_text_sections_skill(request_data: Dict[str, Any]):
+    """
+    Combine Document Intelligence text sections and extract financial data
+    Works with existing index structure (no projections needed)
+    """
     try:
-        cleaner = TextCleaningService()
+        from app.api.endpoints.financial_extraction import extract_financial_metrics_with_gpt4
         
-        # Extract text_sections from request
-        text_sections = request.get('text_sections', [])
+        values = request_data.get('values', [])
+        results = []
         
-        if not text_sections:
-            raise HTTPException(status_code=400, detail="text_sections field is required")
+        for record in values:
+            record_id = record.get('recordId', '')
+            text_sections = record.get('data', {}).get('text_sections', [])
+            
+            # Combine all text sections into one document
+            combined_text = ""
+            for section in text_sections:
+                if hasattr(section, 'content'):
+                    combined_text += section.content + "\n\n"
+                elif isinstance(section, dict) and 'content' in section:
+                    combined_text += section['content'] + "\n\n"
+            
+            # Extract financials from combined text
+            if combined_text.strip():
+                financial_data = await extract_financial_metrics_with_gpt4(combined_text)
+                financial_dict = financial_data.dict()
+                # Remove None values
+                financial_dict = {k: v for k, v in financial_dict.items() if v is not None}
+            else:
+                financial_dict = {}
+            
+            results.append({
+                "recordId": record_id,
+                "data": financial_dict,
+                "errors": [],
+                "warnings": [] if financial_dict else [{"message": "No text content found"}]
+            })
         
-        # Extract text from JSON sections
-        combined_text = cleaner.extract_text_from_json_sections(text_sections)
-        
-        # Clean the text
-        cleaned_text = cleaner.clean_ocr_text(combined_text)
-        
-        # Analyze sections
-        sections = cleaner._extract_sections(cleaned_text)
-        
-        return {
-            "input_sections": len(text_sections),
-            "original_length": len(combined_text),
-            "cleaned_length": len(cleaned_text),
-            "sections_found": sections,
-            "preview": cleaned_text[:500],
-            "full_cleaned_text": cleaned_text
-        }
+        return {"values": results}
         
     except Exception as e:
-        logger.error("Test text cleaning failed", error=str(e))
+        logger.error("Financial extraction from sections failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

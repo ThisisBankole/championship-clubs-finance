@@ -1,4 +1,4 @@
-
+# app/services/azure_search/manager.py
 import os
 from typing import Dict, Any, List, Optional
 from azure.search.documents.indexes import SearchIndexClient, SearchIndexerClient
@@ -319,7 +319,7 @@ class AzureSearchManager:
             context="/document", 
             uri=f"{self.api_base_url}/api/v1/skillsets/extract-club-metadata",
             http_method="POST",
-            timeout="PT3M",
+            timeout="PT1M",
             batch_size=10,
             inputs=[
                 InputFieldMappingEntry(
@@ -343,7 +343,7 @@ class AzureSearchManager:
                 context="/document",
                 uri=f"{self.api_base_url}/api/v1/financial-extraction/extract-financials", 
                 http_method="POST",
-                timeout="PT3M",
+                timeout="PT5M",
                 batch_size=1,
                 inputs=[
                     InputFieldMappingEntry(
@@ -505,13 +505,45 @@ class AzureSearchManager:
         """Get indexer execution status"""
         try:
             status = self.indexer_client.get_indexer_status(self.indexer_name)
-            return {
-                "status": status.status.value if status.status else "unknown",
-                "last_result": status.last_result.status.value if status.last_result else None,
-                "items_processed": status.last_result.items_processed if status.last_result else 0,
-                "items_failed": status.last_result.items_failed if status.last_result else 0,
-                "error_details": status.last_result.error_details if status.last_result else []
+            
+            # Handle the actual structure of the status object
+            result = {
+                "indexer_name": self.indexer_name,
+                "status": str(status.status) if hasattr(status, 'status') and status.status else "unknown"
             }
+            
+            # Get last execution result if available
+            if hasattr(status, 'last_result') and status.last_result:
+                last_result = status.last_result
+                result["last_result"] = {
+                    "status": str(last_result.status) if hasattr(last_result, 'status') else "unknown",
+                    "start_time": str(last_result.start_time) if hasattr(last_result, 'start_time') else None,
+                    "end_time": str(last_result.end_time) if hasattr(last_result, 'end_time') else None,
+                    "item_count": getattr(last_result, 'item_count', 0),
+                    "failed_item_count": getattr(last_result, 'failed_item_count', 0),
+                    "initial_tracking_state": str(getattr(last_result, 'initial_tracking_state', '')),
+                    "final_tracking_state": str(getattr(last_result, 'final_tracking_state', ''))
+                }
+                
+                # Get error details if any
+                if hasattr(last_result, 'errors') and last_result.errors:
+                    result["last_result"]["errors"] = [str(error) for error in last_result.errors]
+            
+            # Get execution history if available
+            if hasattr(status, 'execution_history') and status.execution_history:
+                result["execution_history"] = []
+                for execution in status.execution_history[:3]:  # Last 3 executions
+                    exec_info = {
+                        "status": str(execution.status) if hasattr(execution, 'status') else "unknown",
+                        "start_time": str(execution.start_time) if hasattr(execution, 'start_time') else None,
+                        "end_time": str(execution.end_time) if hasattr(execution, 'end_time') else None
+                    }
+                    if hasattr(execution, 'errors') and execution.errors:
+                        exec_info["errors"] = [str(error) for error in execution.errors]
+                    result["execution_history"].append(exec_info)
+            
+            return result
+            
         except Exception as e:
             logger.error("Failed to get indexer status", error=str(e))
             return {"error": str(e)}
