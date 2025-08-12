@@ -40,8 +40,13 @@ class FinancialData(BaseModel):
     is_abridged: Optional[bool] = None
     revenue: Optional[float] = None
     turnover: Optional[float] = None
+    operating_expenses: Optional[float] = None
+    net_income: Optional[float] = None
+    
     total_assets: Optional[float] = None
     total_liabilities: Optional[float] = None
+    total_equity: Optional[float] = None
+    
     net_assets: Optional[float] = None
     cash_at_bank: Optional[float] = None
     cash_and_cash_equivalents: Optional[float] = None
@@ -60,7 +65,7 @@ class FinancialData(BaseModel):
     administrative_expenses: Optional[float] = None
     agent_fees: Optional[float] = None
     # Document metadata
-    is_abridged: Optional[bool] = None
+   
     document_type: Optional[str] = None
     profit_loss_filed: Optional[bool] = None
 
@@ -514,22 +519,36 @@ def detect_abridged_accounts(text: str) -> Dict[str, Any]:
         "filing_exemptions": []
     }
     
-    # Primary indicators of abridged accounts
+    # PRIMARY DETECTION: Look for "unaudited abridged accounts" in title
+    # This is the most reliable indicator as it appears in every abridged filing
+    if "unaudited abridged accounts" in text_lower:
+        detection_result["is_abridged"] = True
+        detection_result["document_type"] = "abridged"
+        detection_result["profit_loss_filed"] = False  # Abridged accounts don't include P&L
+        logger.info("Detected abridged accounts from title", 
+                   indicator="unaudited abridged accounts")
+        return detection_result
+    
+    # SECONDARY DETECTION: Other abridged indicators as fallback
     abridged_indicators = [
         "abridged accounts",
         "abridged financial statements", 
         "preparation of abridged accounts",
         "section 444",
         "section 444(2a)",
+        "section 444 (2a)",  # With spaces
         "small companies regime"
     ]
     
-    # Check for abridged account indicators
+    # Check for other abridged account indicators
     for indicator in abridged_indicators:
         if indicator in text_lower:
             detection_result["is_abridged"] = True
             detection_result["document_type"] = "abridged"
-            break
+            detection_result["profit_loss_filed"] = False
+            logger.info("Detected abridged accounts from indicator", 
+                       indicator=indicator)
+            return detection_result
     
     # Check for micro entity accounts (even more limited than abridged)
     micro_indicators = [
@@ -543,9 +562,12 @@ def detect_abridged_accounts(text: str) -> Dict[str, Any]:
         if indicator in text_lower:
             detection_result["is_abridged"] = True
             detection_result["document_type"] = "micro"
-            break
+            detection_result["profit_loss_filed"] = False
+            logger.info("Detected micro entity accounts", 
+                       indicator=indicator)
+            return detection_result
     
-    # Check for small company exemptions
+    # If not abridged, check for full accounts with exemptions
     small_company_indicators = [
         "section 477",
         "small companies",
@@ -556,46 +578,24 @@ def detect_abridged_accounts(text: str) -> Dict[str, Any]:
     for indicator in small_company_indicators:
         if indicator in text_lower:
             detection_result["filing_exemptions"].append("small_company")
-            break
     
-    # Check if Profit & Loss Account is explicitly not filed
-    profit_loss_not_filed_indicators = [
-        "directors have chosen to not file",
-       
-        "profit and loss account not filed",
-        "p&l not filed",
-        "income statement not filed"
-    ]
-    
-    profit_loss_not_filed = any(indicator in text_lower for indicator in profit_loss_not_filed_indicators)
-    
-    # Check if Profit & Loss Account appears to be present
+    # Check if Profit & Loss Account appears to be present (for full accounts)
     profit_loss_present_indicators = [
         "profit and loss account",
         "statement of comprehensive income",
         "income statement",
-        "turnover",
-        "revenue"
+        "turnover"
     ]
     
     profit_loss_present = any(indicator in text_lower for indicator in profit_loss_present_indicators)
     
-    # Determine P&L filing status
-    if profit_loss_not_filed:
-        detection_result["profit_loss_filed"] = False
-    elif profit_loss_present and not detection_result["is_abridged"]:
-        detection_result["profit_loss_filed"] = True
-    elif detection_result["is_abridged"]:
-        # For abridged accounts, P&L is often not filed
-        detection_result["profit_loss_filed"] = False
-    
-    # If we haven't detected abridged but found small company exemptions, likely full accounts
-    if not detection_result["is_abridged"] and detection_result["filing_exemptions"]:
+    # Determine final classification for non-abridged accounts
+    if profit_loss_present:
         detection_result["document_type"] = "full"
         detection_result["profit_loss_filed"] = True
-    elif not detection_result["is_abridged"]:
-        detection_result["document_type"] = "full"
-        detection_result["profit_loss_filed"] = True
+    else:
+        detection_result["document_type"] = "unknown"
+        detection_result["profit_loss_filed"] = None
     
     logger.info("Document type detection completed",
                is_abridged=detection_result["is_abridged"],

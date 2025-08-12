@@ -13,7 +13,8 @@ from app.api.endpoints import skillset_endpoints
 from app.api.endpoints import financial_extraction
 from app.api.endpoints import search_management
 from app.api.endpoints import comprehensive_skillset
-
+from app.api.endpoints import data_combiner
+from app.api.endpoints import scheduler
 
 logger = structlog.get_logger()
 
@@ -42,6 +43,18 @@ api_router.include_router(
     comprehensive_skillset.router,
     prefix="/skillsets",
     tags=["comprehensive-skillset"]
+)
+
+api_router.include_router(
+    data_combiner.router,
+    prefix="/data-combiner",
+    tags=["data-combiner"]
+)
+
+api_router.include_router(
+    scheduler.router,
+    prefix="/scheduler",
+    tags=["scheduler"]
 )
 
 

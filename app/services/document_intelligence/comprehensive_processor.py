@@ -152,6 +152,7 @@ class ComprehensiveDocumentProcessor:
                     
                     # Update result with financial data
                     financial_fields = [
+                        "is_abridged", "document_type", "profit_loss_filed",
                         "revenue", "turnover", "total_assets", "total_liabilities",
                         "net_assets", "cash_at_bank", "cash_and_cash_equivalents",
                         "creditors_due_within_one_year", "creditors_due_after_one_year",

@@ -27,7 +27,7 @@ azure-ai-documentintelligence
 
 python-multipart
 pillow
-
+schedule
 # Companies House API
 requests
 aiohttp

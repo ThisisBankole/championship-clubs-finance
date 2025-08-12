@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 from app.api.endpoints.api import api_router
+from app.api.endpoints import data_combiner
+from app.services.scheduler.championship_scheduler import ChampionshipScheduler
 
 # Configure structured logging
 structlog.configure(
@@ -47,6 +49,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+scheduler = ChampionshipScheduler()
+
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
@@ -58,6 +62,19 @@ async def root():
         "docs": "/api/v1/docs",
         "health": "/health"
     }
+    
+    
+@app.on_event("startup")
+async def startup_event():
+    """Start scheduler on app startup"""
+    scheduler.start_scheduler()
+
+@app.on_event("shutdown") 
+async def shutdown_event():
+    """Stop scheduler on app shutdown"""
+    scheduler.stop_scheduler()
+    
+    
 
 @app.get("/health")
 async def health_check():
