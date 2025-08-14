@@ -78,6 +78,9 @@ class ComprehensiveDocumentProcessor:
             "player_amortization": None,
             "other_staff_costs": None,
             "stadium_costs": None,
+            "operating_expenses": None, 
+            "net_income": None, 
+            "total_equity": None,
             "administrative_expenses": None,
             "agent_fees": None
         }
@@ -149,6 +152,9 @@ class ComprehensiveDocumentProcessor:
                 
                 try:
                     financial_data = await self.financial_extractor(result["cleaned_text"])
+                    print(f"DEBUG - ComprehensiveProcessor: operating_expenses = {getattr(financial_data, 'operating_expenses', None)}")
+                    print(f"DEBUG - ComprehensiveProcessor: net_income = {getattr(financial_data, 'net_income', None)}")
+                    print(f"DEBUG - ComprehensiveProcessor: total_equity = {getattr(financial_data, 'total_equity', None)}")
                     
                     # Update result with financial data
                     financial_fields = [
@@ -159,7 +165,7 @@ class ComprehensiveDocumentProcessor:
                         "operating_profit", "profit_loss_before_tax", "broadcasting_revenue",
                         "commercial_revenue", "matchday_revenue", "player_trading_income",
                         "player_wages", "player_amortization", "other_staff_costs",
-                        "stadium_costs", "administrative_expenses", "agent_fees"
+                        "stadium_costs", "administrative_expenses", "agent_fees", "operating_expenses", "net_income", "total_equity"
                     ]
                     
                     extracted_count = 0
@@ -168,6 +174,10 @@ class ComprehensiveDocumentProcessor:
                         result[field] = value
                         if value is not None:
                             extracted_count += 1
+                            
+                    print(f"DEBUG - ComprehensiveProcessor result: operating_expenses = {result.get('operating_expenses')}")
+                    print(f"DEBUG - ComprehensiveProcessor result: net_income = {result.get('net_income')}")
+                    print(f"DEBUG - ComprehensiveProcessor result: total_equity = {result.get('total_equity')}")
                     
                     logger.info("Financial extraction completed",
                                filename=filename,
