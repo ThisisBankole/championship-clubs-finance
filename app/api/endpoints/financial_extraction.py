@@ -285,7 +285,7 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
         raise HTTPException(status_code=500, detail="Azure AI API key not configured")
     
     # SIMPLIFIED: Basic validation only
-    if not text or len(text.strip()) < 100:
+    if not text or len(text.strip()) < 10:
         logger.warning(f"Insufficient text for extraction: {len(text) if text else 0} characters")
         return FinancialData()
     
