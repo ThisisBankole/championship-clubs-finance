@@ -419,6 +419,7 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
     "turnover": number_or_null,
     "operating_expenses": number_or_null,
     "operating_profit": number_or_null,
+    "net_income":number_or_null,
     "profit_before_tax": number_or_null,
     "profit_for_the_year": number_or_null,
     "matchday_revenue": number_or_null,
