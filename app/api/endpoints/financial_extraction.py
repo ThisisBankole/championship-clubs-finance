@@ -457,6 +457,7 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
         )
         
         result_text = response.choices[0].message.content
+        print(f"GPT-4 raw response: {result_text}")
         logger.info(f"GPT-4 raw response: {result_text}") 
         logger.info("GPT-4 extraction completed", 
                    response_length=len(result_text),
