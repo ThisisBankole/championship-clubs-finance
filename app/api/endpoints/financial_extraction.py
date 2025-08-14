@@ -468,17 +468,16 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
         try:
             financial_dict = json.loads(result_text)
             
-            logger.info(f"Before validation: operating_expenses = {financial_dict.get('operating_expenses')}")
-            logger.info(f"Before validation: net_income = {financial_dict.get('net_income')}")  
-            logger.info(f"Before validation: total_equity = {financial_dict.get('total_equity')}")
-
+            print(f"DEBUG - Before validation: operating_expenses = {financial_dict.get('operating_expenses')}")
+            print(f"DEBUG - Before validation: net_income = {financial_dict.get('net_income')}")  
+            print(f"DEBUG - Before validation: total_equity = {financial_dict.get('total_equity')}")
             
             # ENHANCED: Validate extracted values make business sense
             validated_dict = validate_financial_data(financial_dict)
             
-            logger.info(f"After validation: operating_expenses = {validated_dict.get('operating_expenses')}")
-            logger.info(f"After validation: net_income = {validated_dict.get('net_income')}")
-            logger.info(f"After validation: total_equity = {validated_dict.get('total_equity')}")
+            print(f"DEBUG - After validation: operating_expenses = {validated_dict.get('operating_expenses')}")
+            print(f"DEBUG - After validation: net_income = {validated_dict.get('net_income')}")
+            print(f"DEBUG - After validation: total_equity = {validated_dict.get('total_equity')}")
             
             # Create FinancialData object with validated values and document metadata
             result = FinancialData(
@@ -513,9 +512,9 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
                 agent_fees=validated_dict.get('agent_fees')
             )
             
-            logger.info(f"Final result: operating_expenses = {result.operating_expenses}")
-            logger.info(f"Final result: net_income = {result.net_income}")
-            logger.info(f"Final result: total_equity = {result.total_equity}")
+            print(f"DEBUG - Final result: operating_expenses = {result.operating_expenses}")
+            print(f"DEBUG - Final result: net_income = {result.net_income}")
+            print(f"DEBUG - Final result: total_equity = {result.total_equity}")
             
             # Log successful extraction summary with document context
             extracted_fields = [k for k, v in validated_dict.items() if v is not None]
