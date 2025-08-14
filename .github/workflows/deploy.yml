@@ -1,0 +1,35 @@
+name: Deploy to Azure Container Apps
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: btransfermarktregistry.azurecr.io
+        username: btransfermarktregistry
+        password: ${{ secrets.ACR_PASSWORD }}
+        
+    - name: Build and push Docker image
+      run: |
+        docker build -t btransfermarktregistry.azurecr.io/football-finance-api:latest .
+        docker push btransfermarktregistry.azurecr.io/football-finance-api:latest
+        
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Deploy to Container App
+      run: |
+        az containerapp update \
+          --name football-finance-api \
+          --resource-group transfermarkt-rg \
+          --image btransfermarktregistry.azurecr.io/football-finance-api:latest

@@ -286,7 +286,7 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
     
     # SIMPLIFIED: Basic validation only
     if not text or len(text.strip()) < 100:
-        logger.warning("Insufficient text for extraction", text_length=len(text) if text else 0)
+        logger.warning(f"Insufficient text for extraction: {len(text) if text else 0} characters")
         return FinancialData()
     
     try:
@@ -356,6 +356,15 @@ You will be provided with pre-cleaned text from a UK football club's financial s
     **Example Rule:** A document containing the text "The members have agreed to the preparation of abridged accounts... in accordance with Section 444 (2A)" **MUST** result in `is_abridged: true`.
 
     **Default Condition:** If you find a clear Profit and Loss account with a "Turnover" figure and NONE of the abridged evidence above, set this to `false`.
+    
+    CRITICAL: Extract these EXACT field names:
+
+    INCOME STATEMENT:
+    - operating_expenses: Look for "Operating expenses" or total costs
+    - net_income: Look for "Total comprehensive loss/profit", "Net income", "Profit/(loss) for the year"
+
+    BALANCE SHEET:  
+    - total_equity: Look for "Total equity", "Net liabilities" (negative), "Shareholders' equity"
 
 Based on your point 1 above analysis, now extract the following fields. If `is_abridged` is `true`, you already know that most profit and loss fields will be `null`.
 
@@ -369,6 +378,8 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
 
 4. **Financial Metrics Extraction (Primary Statement):**
    * **`turnover`**: From the "Turnover" or "Revenue" line in the Profit and Loss Account.
+   * **`operating_expenses`**: From "Operating expenses" line in the Profit and Loss Account.
+   * **`net_income`**: From "Total comprehensive loss/profit" or "Profit/(loss) for the year" line in the Profit and Loss Account.
    * **`operating_loss` / `operating_profit`**: From the "Operating loss" or "Operating profit" line. Ensure losses are negative.
    * **`profit_before_tax`**: From the "Profit/(loss) before taxation" line.
    * **`profit_for_the_year`**: From the "Profit/(loss) for the financial year" line.
@@ -376,6 +387,7 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
    * **`net_assets`**: From the "Net assets" line on the Balance Sheet. Can be negative ("Net liabilities").
    * **`cash_at_bank`**: From "Cash at bank and in hand" or "Cash and cash equivalents" on the Balance Sheet. Can be negative if overdrawn.
    * **`creditors_due_within_one_year`**: From "Creditors: amounts falling due within one year".
+   * **`cash_and_cash_equivalents`**: From "Cash and cash equivalents" on the Balance Sheet.
 
 5. **Financial Metrics Extraction (Notes to the Accounts):**
    * **Revenue Breakdown (from Turnover Note):**
@@ -405,6 +417,7 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
     "company_name": "string_or_null",
     "accounting_year_end": "string_or_null",
     "turnover": number_or_null,
+    "operating_expenses": number_or_null,
     "operating_profit": number_or_null,
     "profit_before_tax": number_or_null,
     "profit_for_the_year": number_or_null,
@@ -421,6 +434,7 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
     "creditors_due_within_one_year": number_or_null,
     "revenue": number_or_null,
     "total_liabilities": number_or_null,
+    "total_equity": number_or_null,
     "cash_and_cash_equivalents": number_or_null,
     "creditors_due_after_one_year": number_or_null,
     "profit_loss_before_tax": number_or_null,
@@ -443,6 +457,7 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
         )
         
         result_text = response.choices[0].message.content
+        logger.info(f"GPT-4 raw response: {result_text}") 
         logger.info("GPT-4 extraction completed", 
                    response_length=len(result_text),
                    estimated_cost_tokens=response.usage.total_tokens if hasattr(response, 'usage') else 'unknown')
