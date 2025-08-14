@@ -27,14 +27,7 @@ class FinancialSearchService:
             results = self.search_client.search(
                 search_text=query,
                 top=50,
-                select=[
-                    "id", 
-                    "company_number", 
-                    "club_name", 
-                    "accounts_year_end",
-                    "blob_path", 
-                    "text_sections_content"
-                ]
+                
             )
             
             # Data is already clean from your custom skill!

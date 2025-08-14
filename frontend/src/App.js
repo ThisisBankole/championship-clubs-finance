@@ -11,7 +11,18 @@ function App() {
   useEffect(() => {
     const fetchClubs = async () => {
       try {
+
+        console.log('=== API FETCH DEBUG ===');
+      
+
         const response = await clubsApi.getAllClubs();
+
+        console.log('API Response:', response);
+        console.log('Response data:', response.data);
+        console.log('Clubs array:', response.data.clubs);
+        console.log('Number of clubs from API:', response.data.clubs?.length);
+
+
         setClubs(response.data.clubs);
         setLoading(false);
       } catch (err) {
@@ -23,23 +34,41 @@ function App() {
     fetchClubs();
   }, []);
 
-  if (loading) return <div style={{ padding: '20px' }}>Loading clubs...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading clubs...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger m-4" role="alert">
+        <h4 className="alert-heading">Error</h4>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      <header style={{ 
-        backgroundColor: 'white', 
-        padding: '20px', 
-        borderBottom: '1px solid #ddd'
-      }}>
-        <h1 style={{ margin: 0, color: '#333' }}>Football Finance Dashboard</h1>
-        <p style={{ margin: '8px 0 0 0', color: '#666' }}>
-          {clubs.length} Championship Clubs
-        </p>
-      </header>
+    <div className="min-vh-100" style={{ backgroundColor: '#f8f9fa' }}>
+      <nav className="navbar navbar-light bg-white border-bottom">
+        <div className="container-fluid px-4">
+          <span className="navbar-brand mb-0 h1 fw-bold" style={{ fontFamily: 'var(--font-mono)' }}>
+            Football Finance Dashboard
+          </span>
+          <span className="text-muted small">
+            
+          </span>
+        </div>
+      </nav>
       
-      <ClubGrid clubs={clubs} />
+      <main className="py-4">
+        <ClubGrid clubs={clubs} />
+      </main>
     </div>
   );
 }
