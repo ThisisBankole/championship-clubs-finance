@@ -479,6 +479,9 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
                 # Financial data from extraction
                 revenue=validated_dict.get('revenue'),
                 turnover=validated_dict.get('turnover'),
+                operating_expenses=validated_dict.get('operating_expenses'),
+                total_equity=validated_dict.get('total_equity'),               
+                net_income=validated_dict.get('net_income'),                  
                 total_assets=validated_dict.get('total_assets'),
                 total_liabilities=validated_dict.get('total_liabilities'),
                 net_assets=validated_dict.get('net_assets'),
