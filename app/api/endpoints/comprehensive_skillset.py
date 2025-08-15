@@ -33,15 +33,36 @@ async def comprehensive_document_processor_skill(request_data: Dict[str, Any]):
             
             try:
                 # Extract file data and metadata
-                file_data_b64 = data.get('file_data', '')
+                file_data_raw = data.get('file_data', '')
                 blob_path = data.get('blob_path', '') or data.get('metadata_storage_path', '')
-                
-                if not file_data_b64:
+
+                if not file_data_raw:
                     raise ValueError("No file_data provided")
-                
+
                 if not blob_path:
                     raise ValueError("No blob_path provided")
-                
+
+                # Handle different Azure AI Search file_data formats
+                logger.info("Debug file_data format", 
+                        record_id=record_id,
+                        file_data_type=type(file_data_raw),
+                        has_type_field=isinstance(file_data_raw, dict) and '$type' in file_data_raw,
+                        dict_keys=list(file_data_raw.keys()) if isinstance(file_data_raw, dict) else None)
+
+                if isinstance(file_data_raw, dict):
+                    # Azure AI Search sometimes sends file_data as dict with '$type' and 'data'
+                    if '$type' in file_data_raw and 'data' in file_data_raw:
+                        file_data_b64 = file_data_raw['data']
+                    elif 'data' in file_data_raw:
+                        file_data_b64 = file_data_raw['data']
+                    else:
+                        raise ValueError(f"file_data dict format not recognized. Keys: {list(file_data_raw.keys())}")
+                elif isinstance(file_data_raw, str):
+                    # Standard base64 string format
+                    file_data_b64 = file_data_raw
+                else:
+                    raise ValueError(f"file_data format not supported: {type(file_data_raw)}")
+
                 # Decode base64 file data
                 try:
                     file_data = base64.b64decode(file_data_b64)
@@ -95,24 +116,21 @@ async def comprehensive_document_processor_skill(request_data: Dict[str, Any]):
                     "company_number": None,
                     "club_name": None,
                     "accounts_year_end": None,
-                    # All financial fields as None
-                    **{field: None for field in [
-                        "revenue", "turnover", "total_assets", "total_liabilities",
-                        "net_assets", "cash_at_bank", "cash_and_cash_equivalents",
-                        "creditors_due_within_one_year", "creditors_due_after_one_year",
-                        "operating_profit", "profit_loss_before_tax", "broadcasting_revenue",
-                        "commercial_revenue", "matchday_revenue", "player_trading_income",
-                        "player_wages", "player_amortization", "other_staff_costs",
-                        "stadium_costs", "administrative_expenses", "agent_fees","cost_of_sales", "gross_profit", "gross_loss",
-                        "interest_receivable", "interest_payable", "other_operating_income",
-                        "staff_costs_total", "social_security_costs", "pension_costs",
-                        "depreciation_charges", "operating_lease_charges",
-                        "profit_on_player_disposals", "loss_on_player_disposals",
-                        "intangible_assets", "tangible_assets", "current_assets",
-                        "stocks", "debtors", "operating_cash_flow",
-                        "investing_cash_flow", "financing_cash_flow"
-                    ]}
                 }
+                
+                # Add all financial fields as None
+                financial_fields = [
+                    "revenue", "turnover", "total_assets", "total_liabilities",
+                    "net_assets", "cash_at_bank", "cash_and_cash_equivalents",
+                    "creditors_due_within_one_year", "creditors_due_after_one_year",
+                    "operating_profit", "profit_loss_before_tax", "broadcasting_revenue",
+                    "commercial_revenue", "matchday_revenue", "player_trading_income",
+                    "player_wages", "player_amortization", "other_staff_costs",
+                    "stadium_costs", "administrative_expenses", "agent_fees"
+                ]
+                
+                for field in financial_fields:
+                    error_result[field] = None
                 
                 results.append({
                     "recordId": record_id,
