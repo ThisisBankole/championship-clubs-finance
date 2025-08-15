@@ -39,6 +39,88 @@
 }
 
 
+@font-face {
+  font-family: 'Zenbones Slab';
+  src: url('./fonts/slab/Zenbones-Slab-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Slab';
+  src: url('./fonts/slab/Zenbones-Slab-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Slab';
+  src: url('./fonts/slab/Zenbones-Slab-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Slab';
+  src: url('./fonts/slab/Zenbones-Slab-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Slab';
+  src: url('./fonts/slab/Zenbones-Slab-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Zenbones Brainy Font Faces */
+@font-face {
+  font-family: 'Zenbones Brainy';
+  src: url('./fonts/brainy/Zenbones-Brainy-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Brainy';
+  src: url('./fonts/brainy/Zenbones-Brainy-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Brainy';
+  src: url('./fonts/brainy/Zenbones-Brainy-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Brainy';
+  src: url('./fonts/brainy/Zenbones-Brainy-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zenbones Brainy';
+  src: url('./fonts/brainy/Zenbones-Brainy-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
@@ -56,6 +138,7 @@ code {
 
 :root {
   --font-mono: 'Zenbones Mono', 'JetBrains Mono', monospace;
-  --font-slab: 'Zenbones Slab', Georgia, serif;
-  --font-brainy: 'Zenbones Brainy', sans-serif;
+  --font-slab: 'Zenbones Slab', 'JetBrains Mono';
+  --font-brainy: 'Zenbones Brainy', 'JetBrains Mono';
+  --font-jet: 'JetBrains Mono', 'Zenbones Mono';
 }
