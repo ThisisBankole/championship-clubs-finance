@@ -64,7 +64,45 @@ class FinancialData(BaseModel):
     stadium_costs: Optional[float] = None
     administrative_expenses: Optional[float] = None
     agent_fees: Optional[float] = None
-    # Document metadata
+   
+    cost_of_sales: Optional[float] = None
+    gross_profit: Optional[float] = None
+    gross_loss: Optional[float] = None
+
+
+    interest_receivable: Optional[float] = None
+    interest_payable: Optional[float] = None
+    other_operating_income: Optional[float] = None
+
+   
+    staff_costs_total: Optional[float] = None
+    social_security_costs: Optional[float] = None
+    pension_costs: Optional[float] = None
+    depreciation_charges: Optional[float] = None
+    operating_lease_charges: Optional[float] = None
+
+  
+    profit_on_player_disposals: Optional[float] = None
+    loss_on_player_disposals: Optional[float] = None
+
+
+    intangible_assets: Optional[float] = None
+    tangible_assets: Optional[float] = None
+    current_assets: Optional[float] = None
+    stocks: Optional[float] = None
+    debtors: Optional[float] = None
+
+   
+    operating_cash_flow: Optional[float] = None
+    investing_cash_flow: Optional[float] = None
+    financing_cash_flow: Optional[float] = None
+
+
+    gross_margin: Optional[float] = None
+    operating_margin: Optional[float] = None
+    debt_to_equity_ratio: Optional[float] = None
+    
+
    
     document_type: Optional[str] = None
     profit_loss_filed: Optional[bool] = None
@@ -388,6 +426,17 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
    * **`cash_at_bank`**: From "Cash at bank and in hand" or "Cash and cash equivalents" on the Balance Sheet. Can be negative if overdrawn.
    * **`creditors_due_within_one_year`**: From "Creditors: amounts falling due within one year".
    * **`cash_and_cash_equivalents`**: From "Cash and cash equivalents" on the Balance Sheet.
+   * **`cost_of_sales`**: From "Cost of sales" line in the Profit and Loss Account.
+   * **`gross_profit`**: From "Gross profit" line in the Profit and Loss Account.
+   * **`gross_loss`**: From "Gross loss" line in the Profit and Loss Account.
+   * **`interest_receivable`**: From "Interest receivable" or "Interest income" line.
+   * **`interest_payable`**: From "Interest payable" or "Interest expenses" line.
+   * **`other_operating_income`**: From "Other operating income" line.
+   * **`intangible_assets`**: From "Intangible assets" on the Balance Sheet.
+   * **`tangible_assets`**: From "Tangible assets" on the Balance Sheet.
+   * **`current_assets`**: From "Current assets" on the Balance Sheet.
+   * **`stocks`**: From "Stocks" or "Inventories" on the Balance Sheet.
+   * **`debtors`**: From "Debtors" on the Balance Sheet.
 
 5. **Financial Metrics Extraction (Notes to the Accounts):**
    * **Revenue Breakdown (from Turnover Note):**
@@ -400,6 +449,22 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
    * **Staff Costs (from Staff Costs Note):**
        * **`total_staff_costs`**: From the total of "Wages and salaries" and other social security/pension costs.
        * **`player_wages`**: If separately disclosed, look for "Players' remuneration" or similar phrasing.
+       * **`staff_costs_total`**: From the total of all staff-related costs.
+       * **`social_security_costs`**: From "Social security costs" in staff costs note.
+       * **`pension_costs`**: From "Pension costs" in staff costs note.
+    
+   * **Other Costs:**
+       * **`depreciation_charges`**: From "Depreciation" charges.
+       * **`operating_lease_charges`**: From "Operating lease" costs.
+       * **`profit_on_player_disposals`**: From profit on sale of players.
+       * **`loss_on_player_disposals`**: From loss on sale of players.
+       
+   * **Cash Flow (if available):**
+       * **`operating_cash_flow`**: From cash flow from operations.
+       * **`investing_cash_flow`**: From cash flow from investing activities.
+       * **`financing_cash_flow`**: From cash flow from financing activities.
+       
+    
 
 
 **Validation Checks (for your internal reference):**
@@ -442,7 +507,29 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
     "other_staff_costs": number_or_null,
     "stadium_costs": number_or_null,
     "administrative_expenses": number_or_null,
-    "agent_fees": number_or_null
+    "agent_fees": number_or_null,
+    "cost_of_sales": number_or_null,
+    "gross_profit": number_or_null,
+    "gross_loss": number_or_null,
+    "interest_receivable": number_or_null,
+    "interest_payable": number_or_null,
+    "other_operating_income": number_or_null,
+    "staff_costs_total": number_or_null,
+    "social_security_costs": number_or_null,
+    "pension_costs": number_or_null,
+    "depreciation_charges": number_or_null,
+    "operating_lease_charges": number_or_null,
+    "profit_on_player_disposals": number_or_null,
+    "loss_on_player_disposals": number_or_null,
+    "intangible_assets": number_or_null,
+    "tangible_assets": number_or_null,
+    "current_assets": number_or_null,
+    "stocks": number_or_null,
+    "debtors": number_or_null,
+    "operating_cash_flow": number_or_null,
+    "investing_cash_flow": number_or_null,
+    "financing_cash_flow": number_or_null
+    
 }}"""
         
         # EXPERT-LEVEL: Optimized GPT-4 call with enhanced prompts
@@ -509,7 +596,29 @@ Present the extracted data in a JSON object. If a metric cannot be found in the 
                 other_staff_costs=validated_dict.get('other_staff_costs'),
                 stadium_costs=validated_dict.get('stadium_costs'),
                 administrative_expenses=validated_dict.get('administrative_expenses'),
-                agent_fees=validated_dict.get('agent_fees')
+                agent_fees=validated_dict.get('agent_fees'),
+                cost_of_sales=validated_dict.get('cost_of_sales'),
+                gross_profit=validated_dict.get('gross_profit'),
+                gross_loss=validated_dict.get('gross_loss'),
+                interest_receivable=validated_dict.get('interest_receivable'),
+                interest_payable=validated_dict.get('interest_payable'),
+                other_operating_income=validated_dict.get('other_operating_income'),
+                staff_costs_total=validated_dict.get('staff_costs_total'),
+                social_security_costs=validated_dict.get('social_security_costs'),
+                pension_costs=validated_dict.get('pension_costs'),
+                depreciation_charges=validated_dict.get('depreciation_charges'),
+                operating_lease_charges=validated_dict.get('operating_lease_charges'),
+                profit_on_player_disposals=validated_dict.get('profit_on_player_disposals'),
+                loss_on_player_disposals=validated_dict.get('loss_on_player_disposals'),
+                intangible_assets=validated_dict.get('intangible_assets'),
+                tangible_assets=validated_dict.get('tangible_assets'),
+                current_assets=validated_dict.get('current_assets'),
+                stocks=validated_dict.get('stocks'),
+                debtors=validated_dict.get('debtors'),
+                operating_cash_flow=validated_dict.get('operating_cash_flow'),
+                investing_cash_flow=validated_dict.get('investing_cash_flow'),
+                financing_cash_flow=validated_dict.get('financing_cash_flow'),
+                
             )
             
             print(f"DEBUG - Final result: operating_expenses = {result.operating_expenses}")
