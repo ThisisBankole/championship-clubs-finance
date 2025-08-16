@@ -170,14 +170,15 @@ class ComprehensiveDocumentProcessor:
             
             # Step 4: Financial data extraction (only if we have good quality text)
             if result["has_financial_content"] and len(result["cleaned_text"]) > 500:
-                logger.info("Step 4: Financial data extraction", filename=filename)
+                print(f"\n🚀 STARTING FINANCIAL EXTRACTION FOR: {filename}")
                 
                 try:
                     financial_data = await self.financial_extractor(result["cleaned_text"])
                     print(f"DEBUG - ComprehensiveProcessor: operating_expenses = {getattr(financial_data, 'operating_expenses', None)}")
                     print(f"DEBUG - ComprehensiveProcessor: net_income = {getattr(financial_data, 'net_income', None)}")
                     print(f"DEBUG - ComprehensiveProcessor: total_equity = {getattr(financial_data, 'total_equity', None)}")
-                    
+                    print(f"   total_assets = {getattr(financial_data, 'total_assets', None)}")
+                    print(f"   total_liabilities = {getattr(financial_data, 'total_liabilities', None)}")
                     
                     club_name = metadata.get("club_name", filename)
                     is_valid, validation_issues = self.validate_extracted_data(financial_data, club_name)
@@ -278,6 +279,10 @@ class ComprehensiveDocumentProcessor:
         Validate the extracted financial data for accuracy and consistency
         Returns validation status and list of issues found
         """
+        
+        print(f"\n🔍 VALIDATING DATA FOR: {club_name}")
+        print("=" * 50)
+    
         issues = []
         
         # Check 1: Balance Sheet Equation (Total Assets = Total Liabilities + Total Equity)
@@ -288,8 +293,22 @@ class ComprehensiveDocumentProcessor:
             right_side = financial_data.total_liabilities + financial_data.total_equity
             difference = abs(left_side - right_side)
             
+            print(f"📊 BALANCE SHEET CHECK:")
+            print(f"   Total Assets: {left_side:,}")
+            print(f"   Total Liabilities: {financial_data.total_liabilities:,}")
+            print(f"   Total Equity: {financial_data.total_equity:,}")
+            print(f"   Right Side (Liab + Equity): {right_side:,}")
+            print(f"   Difference: {difference:,}")
+            
             if difference > 1000:  # Allow £1k tolerance for rounding
-                issues.append(f"Balance sheet equation fails: Assets {left_side:,} ≠ Liabilities {financial_data.total_liabilities:,} + Equity {financial_data.total_equity:,} = {right_side:,} (diff: {difference:,})")
+                issue = f"Balance sheet equation fails: Assets {left_side:,} ≠ Liabilities {financial_data.total_liabilities:,} + Equity {financial_data.total_equity:,} = {right_side:,} (diff: {difference:,})"
+                issues.append(issue)
+                print(f"   ❌ FAILED: {issue}")
+            else:
+                print(f"   ✅ PASSED: Balance sheet equation checks out")
+                
+        else:
+            print(f"   ⚠️  SKIPPED: Missing balance sheet data")
         
         # Check 2: Revenue Breakdown Should Approximately Equal Total Revenue
         if financial_data.turnover and financial_data.turnover > 0:
@@ -299,8 +318,19 @@ class ComprehensiveDocumentProcessor:
                 financial_data.commercial_revenue
             ]))
             
+            print(f"\n💰 REVENUE BREAKDOWN CHECK:")
+            print(f"   Total Revenue: {financial_data.turnover:,}")
+            print(f"   Matchday: {financial_data.matchday_revenue or 0:,}")
+            print(f"   Broadcasting: {financial_data.broadcasting_revenue or 0:,}")
+            print(f"   Commercial: {financial_data.commercial_revenue or 0:,}")
+            print(f"   Component Sum: {revenue_components:,}")
+            
             if revenue_components > 0:
                 percentage_diff = abs(revenue_components - financial_data.turnover) / financial_data.turnover
+                
+                print(f"   Percentage Difference: {percentage_diff:.1%}")
+                 
+                
                 if percentage_diff > 0.15:  # More than 15% difference
                     issues.append(f"Revenue breakdown mismatch: Components {revenue_components:,} vs Total {financial_data.turnover:,} (diff: {percentage_diff:.1%})")
         
@@ -310,8 +340,22 @@ class ComprehensiveDocumentProcessor:
             
             calculated_assets = financial_data.intangible_assets + financial_data.tangible_assets + financial_data.current_assets
             
+            print(f"\n🏢 ASSET COMPONENTS CHECK:")
+            print(f"   Intangible Assets: {financial_data.intangible_assets:,}")
+            print(f"   Tangible Assets: {financial_data.tangible_assets:,}")
+            print(f"   Current Assets: {financial_data.current_assets:,}")
+            print(f"   Calculated Total: {calculated_assets:,}")
+            print(f"   Reported Total: {financial_data.total_assets or 'NULL':,}")
+            
             if financial_data.total_assets and abs(calculated_assets - financial_data.total_assets) > 1000:
-                issues.append(f"Asset components don't match total: Calculated {calculated_assets:,} vs Reported {financial_data.total_assets:,} (diff: {abs(calculated_assets - financial_data.total_assets):,})")
+                issue = f"Asset components don't match total: Calculated {calculated_assets:,} vs Reported {financial_data.total_assets:,}"
+                issues.append(issue)
+                print(f"   ❌ FAILED: {issue}")
+            else:
+                print(f"   ✅ PASSED: Asset components match total")
+                
+        else:
+            print(f"   ⚠️  SKIPPED: Missing asset component data")
         
         # Check 4: Creditors Should Be Negative Values
         for field in ['creditors_due_within_one_year', 'creditors_due_after_one_year']:
