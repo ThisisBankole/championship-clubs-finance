@@ -397,12 +397,10 @@ You will be provided with pre-cleaned text from a UK football club's financial s
     
     CRITICAL: Extract these EXACT field names:
 
-    INCOME STATEMENT:
-    - operating_expenses: Look for "Operating expenses" or total costs
-    - net_income: Look for "Total comprehensive loss/profit", "Net income", "Profit/(loss) for the year"
+
 
     BALANCE SHEET:  
-    - total_equity: Look for "Total equity", "Net liabilities" (negative), "Shareholders' equity"
+    - total_equity: From "Total equity", "Total shareholder equity", "Net assets", or "Net liabilities" (negative)
 
 Based on your point 1 above analysis, now extract the following fields. If `is_abridged` is `true`, you already know that most profit and loss fields will be `null`.
 
@@ -416,12 +414,22 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
 
 4. **Financial Metrics Extraction (Primary Statement):**
    * **`turnover`**: From the "Turnover" or "Revenue" line in the Profit and Loss Account.
-   * **`operating_expenses`**: From "Operating expenses" line in the Profit and Loss Account.
-   * **`net_income`**: From "Total comprehensive loss/profit" or "Profit/(loss) for the year" line in the Profit and Loss Account.
-   * **`operating_loss` / `operating_profit`**: From the "Operating loss" or "Operating profit" line. Ensure losses are negative.
+     * **`operating_expenses`**: PRIORITY ORDER:
+       1. Look for explicit "Operating expenses" 
+       2. Calculate from cost_of_sales + administrative_expenses
+       3. Return null if not calculable
+   * **`net_income`**: CRITICAL - PRIORITY ORDER:
+       1. "Loss for the financial year" OR "Profit for the financial year" (make losses negative)
+       2. "Loss for the year" OR "Profit for the year" (make losses negative)
+       3. "Net profit" OR "Net loss" (make losses negative)
+       4. "Total comprehensive loss" OR "Total comprehensive income" (as backup only)
+   * **`operating_profit`**: From "Operating profit" OR "Operating loss" (make negative if loss)
    * **`profit_before_tax`**: From the "Profit/(loss) before taxation" line.
    * **`profit_for_the_year`**: From the "Profit/(loss) for the financial year" line.
-   * **`total_assets`**: From the "Total assets" line on the Balance Sheet.
+   * **`total_assets`**: PRIORITY ORDER:
+    1. Look for explicit "Total assets" line if stated
+    2. Calculate from intangible_assets + tangible_assets + current_assets
+    3. Return null if components not available
    * **`total_liabilities`**: PRIORITY ORDER:
        1. Look for explicit "Total liabilities" if stated
        2. Calculate from Total assets + absolute value of net assets (when net assets is negative)
@@ -448,11 +456,11 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
        * **`broadcasting_revenue`**: Look for terms like "Broadcasting and media," "EFL distributions," or "Central distributions."
        * **`commercial_revenue`**: Look for terms like "Commercial," "Sponsorship," "Merchandising," or "Retail."
    * **Player Trading (from P&L or specific notes):**
-       * **`player_trading_profit`**: Look for "Profit on disposal of players' registrations."
-       * **`player_amortisation`**: Look for "Amortisation of players' registrations." This is an expense and should be a negative value if presented as such.
+       * **`player_trading_profit`**: Look for "Profit on sale of registrations", "Profit on disposal of players", "Player trading profit"
+       * **`player_amortisation`**: Look for "Player amortisation", "Player amortisation and impairment", "Amortisation of intangible assets"
    * **Staff Costs (from Staff Costs Note):**
        * **`total_staff_costs`**: From the total of "Wages and salaries" and other social security/pension costs.
-       * **`player_wages`**: If separately disclosed, look for "Players' remuneration" or similar phrasing.
+       * **`player_wages`**: If separately disclosed, look for "Players' remuneration", "Player wages", "Playing staff costs" in staff costs breakdown
        * **`staff_costs_total`**: From the total of all staff-related costs.
        * **`social_security_costs`**: From "Social security costs" in staff costs note.
        * **`pension_costs`**: From "Pension costs" in staff costs note.
@@ -464,9 +472,9 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
        * **`loss_on_player_disposals`**: From loss on sale of players.
        
    * **Cash Flow (if available):**
-       * **`operating_cash_flow`**: From cash flow from operations.
-       * **`investing_cash_flow`**: From cash flow from investing activities.
-       * **`financing_cash_flow`**: From cash flow from financing activities.
+       * **`operating_cash_flow`**: From "Net cash from operating activities" or "Cash flows from operating activities"
+       * **`investing_cash_flow`**: From "Net cash from investing activities"
+       * **`financing_cash_flow`**: From "Net cash from financing activities"
        
     
 
