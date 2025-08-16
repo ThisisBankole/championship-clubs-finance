@@ -422,6 +422,10 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
    * **`profit_before_tax`**: From the "Profit/(loss) before taxation" line.
    * **`profit_for_the_year`**: From the "Profit/(loss) for the financial year" line.
    * **`total_assets`**: From the "Total assets" line on the Balance Sheet.
+   * **`total_liabilities`**: PRIORITY ORDER:
+       1. Look for explicit "Total liabilities" if stated
+       2. Calculate from Total assets + absolute value of net assets (when net assets is negative)
+       3. Calculate from creditors_due_within_one_year + creditors_due_after_one_year
    * **`net_assets`**: From the "Net assets" line on the Balance Sheet. Can be negative ("Net liabilities").
    * **`cash_at_bank`**: From "Cash at bank and in hand" or "Cash and cash equivalents" on the Balance Sheet. Can be negative if overdrawn.
    * **`creditors_due_within_one_year`**: From "Creditors: amounts falling due within one year".
