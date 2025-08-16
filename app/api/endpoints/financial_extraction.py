@@ -804,8 +804,8 @@ Return a valid JSON object with this exact structure. All monetary values must b
         result_text = response.choices[0].message.content
         print(f"GPT-4 raw response: {{result_text}}")
         logger.info(f"GPT-4 extraction completed with XML prompt", 
-                   response_length=len(result_text),
-                   estimated_cost_tokens=response.usage.total_tokens if hasattr(response, 'usage') else 'unknown')
+                   extra={"response_length": len(result_text),
+                  "estimated_cost_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 'unknown'})
         
         # Parse and validate JSON response
         try:
@@ -884,12 +884,12 @@ Return a valid JSON object with this exact structure. All monetary values must b
             # Enhanced logging with XML prompt context
             extracted_fields = [k for k, v in validated_dict.items() if v is not None]
             logger.info("Enhanced financial extraction successful",
-                       fields_extracted=len(extracted_fields),
-                       extracted_fields=extracted_fields[:10],  # Show more fields
-                       is_abridged=document_info["is_abridged"],
-                       document_type=document_info["document_type"],
-                       scale_indicator=validated_dict.get('scale_indicator'),
-                       balance_sheet_format=validated_dict.get('balance_sheet_format'))
+                       extra={"fields_extracted": len(extracted_fields),
+                            "extracted_fields": extracted_fields[:10],
+                            "is_abridged": document_info["is_abridged"],
+                            "document_type": document_info["document_type"],
+                            "scale_indicator": validated_dict.get('scale_indicator'),
+                            "balance_sheet_format": validated_dict.get('balance_sheet_format')})
             
             return result
             
@@ -898,7 +898,7 @@ Return a valid JSON object with this exact structure. All monetary values must b
             return FinancialData()
             
     except Exception as e:
-        logger.error("Enhanced financial extraction failed", error=str(e), error_type=type(e).__name__)
+        logger.error("Enhanced financial extraction failed", extra={"error": str(e), "error_type": type(e).__name__})
         return FinancialData()
 
 
