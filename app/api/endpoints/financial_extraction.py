@@ -418,7 +418,7 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
         The balance sheet MUST always balance: **Total Assets = Total Liabilities + Total Equity**
 
         **Mandatory calculation process:**
-        1. **Extract Total Assets:** Look for "Total assets" OR calculate from intangible_assets + tangible_assets + current_assets
+        1. **Extract Total Assets:** Look for "Total assets" OR calculate from intangible_assets + tangible_assets + current_assets OR  If UK format, calculate from Fixed assets + Current assets 
         2. **Extract Total Equity:** From "Net assets" (positive), "Net liabilities" (negative), or "Total equity"
         3. **Calculate Total Liabilities:** Total Liabilities = Total Assets - Total Equity
         4. **Validation:** Verify the equation balances
@@ -442,9 +442,10 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
    * **`profit_before_tax`**: From the "Profit/(loss) before taxation" line.
    * **`profit_for_the_year`**: From the "Profit/(loss) for the financial year" line.
    * **`total_assets`**: PRIORITY ORDER:
-    1. Look for explicit "Total assets" line if stated
-    2. Calculate from intangible_assets + tangible_assets + current_assets
-    3. Return null if components not available
+        1. Look for explicit "Total assets" line if stated
+        2. If UK format, calculate from Fixed assets + Current assets  
+        3. If components missing, calculate from intangible_assets + tangible_assets + current_assets
+        4. Return null if none available
    * **`total_liabilities`**: PRIORITY ORDER:
         1. Look for explicit "Total liabilities" if stated
         2. **CALCULATE using balance sheet equation: Total Assets - Total Equity**
