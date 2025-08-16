@@ -102,6 +102,7 @@ class FinancialData(BaseModel):
     operating_margin: Optional[float] = None
     debt_to_equity_ratio: Optional[float] = None
     
+    
 
    
     document_type: Optional[str] = None
@@ -411,6 +412,20 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
 3. **Currency and Number Conversion:**
    * All monetary values must be converted to their full numerical representation (e.g., "£28.2m" → 28200000, "£456k" → 456000).
    * Numbers enclosed in parentheses are negative (e.g., "(2,500,000)" → -2500000).
+   
+   3.5.  CRITICAL - Balance Sheet Equation Validation**
+
+        The balance sheet MUST always balance: **Total Assets = Total Liabilities + Total Equity**
+
+        **Mandatory calculation process:**
+        1. **Extract Total Assets:** Look for "Total assets" OR calculate from intangible_assets + tangible_assets + current_assets
+        2. **Extract Total Equity:** From "Net assets" (positive), "Net liabilities" (negative), or "Total equity"
+        3. **Calculate Total Liabilities:** Total Liabilities = Total Assets - Total Equity
+        4. **Validation:** Verify the equation balances
+
+        **Examples:**
+        - Assets 77M, Net Liabilities (87M) → Total Liabilities = 77M + 87M = 164M
+        - Assets 39M, Net Assets 12M → Total Liabilities = 39M - 12M = 27M
 
 4. **Financial Metrics Extraction (Primary Statement):**
    * **`turnover`**: From the "Turnover" or "Revenue" line in the Profit and Loss Account.
@@ -431,9 +446,9 @@ Based on your point 1 above analysis, now extract the following fields. If `is_a
     2. Calculate from intangible_assets + tangible_assets + current_assets
     3. Return null if components not available
    * **`total_liabilities`**: PRIORITY ORDER:
-       1. Look for explicit "Total liabilities" if stated
-       2. Calculate from Total assets + absolute value of net assets (when net assets is negative)
-       3. Calculate from creditors_due_within_one_year + creditors_due_after_one_year
+        1. Look for explicit "Total liabilities" if stated
+        2. **CALCULATE using balance sheet equation: Total Assets - Total Equity**
+        3. Calculate from creditors_due_within_one_year + creditors_due_after_one_year (as backup only)
    * **`net_assets`**: From the "Net assets" line on the Balance Sheet. Can be negative ("Net liabilities").
    * **`cash_at_bank`**: From "Cash at bank and in hand" or "Cash and cash equivalents" on the Balance Sheet. Can be negative if overdrawn.
    * **`creditors_due_within_one_year`**: From "Creditors: amounts falling due within one year".

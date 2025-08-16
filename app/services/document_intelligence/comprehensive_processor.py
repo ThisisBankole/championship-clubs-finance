@@ -178,6 +178,28 @@ class ComprehensiveDocumentProcessor:
                     print(f"DEBUG - ComprehensiveProcessor: net_income = {getattr(financial_data, 'net_income', None)}")
                     print(f"DEBUG - ComprehensiveProcessor: total_equity = {getattr(financial_data, 'total_equity', None)}")
                     
+                    
+                    club_name = metadata.get("club_name", filename)
+                    is_valid, validation_issues = self.validate_extracted_data(financial_data, club_name)
+                    
+                    if not is_valid:
+                        logger.warning("Financial data validation issues found",
+                                    filename=filename,
+                                    club_name=club_name,
+                                    issues=validation_issues,
+                                    issue_count=len(validation_issues))
+                        
+                        # Log each issue individually for easier debugging
+                        for i, issue in enumerate(validation_issues, 1):
+                            logger.warning(f"Validation Issue {i}", 
+                                        filename=filename,
+                                        club_name=club_name,
+                                        issue=issue)
+                    else:
+                        logger.info("Financial data validation passed",
+                                filename=filename,
+                                club_name=club_name)
+                    
                     # Update result with financial data
                     financial_fields = [
                         "is_abridged", "document_type", "profit_loss_filed",
@@ -211,7 +233,10 @@ class ComprehensiveDocumentProcessor:
                     
                     logger.info("Financial extraction completed",
                                filename=filename,
-                               fields_extracted=extracted_count)
+                               fields_extracted=extracted_count,
+                               validation_passed=is_valid,
+                               validation_issues=len(validation_issues) if validation_issues else 0
+                               )
                                
                 except Exception as e:
                     logger.error("Financial extraction failed",
@@ -247,4 +272,64 @@ class ComprehensiveDocumentProcessor:
             
             return result
 
+
+    def validate_extracted_data(self, financial_data, club_name):
+        """
+        Validate the extracted financial data for accuracy and consistency
+        Returns validation status and list of issues found
+        """
+        issues = []
+        
+        # Check 1: Balance Sheet Equation (Total Assets = Total Liabilities + Total Equity)
+        if all(hasattr(financial_data, attr) and getattr(financial_data, attr) is not None 
+            for attr in ['total_assets', 'total_liabilities', 'total_equity']):
+            
+            left_side = financial_data.total_assets
+            right_side = financial_data.total_liabilities + financial_data.total_equity
+            difference = abs(left_side - right_side)
+            
+            if difference > 1000:  # Allow £1k tolerance for rounding
+                issues.append(f"Balance sheet equation fails: Assets {left_side:,} ≠ Liabilities {financial_data.total_liabilities:,} + Equity {financial_data.total_equity:,} = {right_side:,} (diff: {difference:,})")
+        
+        # Check 2: Revenue Breakdown Should Approximately Equal Total Revenue
+        if financial_data.turnover and financial_data.turnover > 0:
+            revenue_components = sum(filter(None, [
+                financial_data.matchday_revenue,
+                financial_data.broadcasting_revenue, 
+                financial_data.commercial_revenue
+            ]))
+            
+            if revenue_components > 0:
+                percentage_diff = abs(revenue_components - financial_data.turnover) / financial_data.turnover
+                if percentage_diff > 0.15:  # More than 15% difference
+                    issues.append(f"Revenue breakdown mismatch: Components {revenue_components:,} vs Total {financial_data.turnover:,} (diff: {percentage_diff:.1%})")
+        
+        # Check 3: Asset Components Should Add Up to Total Assets
+        if all(hasattr(financial_data, attr) and getattr(financial_data, attr) is not None 
+            for attr in ['intangible_assets', 'tangible_assets', 'current_assets']):
+            
+            calculated_assets = financial_data.intangible_assets + financial_data.tangible_assets + financial_data.current_assets
+            
+            if financial_data.total_assets and abs(calculated_assets - financial_data.total_assets) > 1000:
+                issues.append(f"Asset components don't match total: Calculated {calculated_assets:,} vs Reported {financial_data.total_assets:,} (diff: {abs(calculated_assets - financial_data.total_assets):,})")
+        
+        # Check 4: Creditors Should Be Negative Values
+        for field in ['creditors_due_within_one_year', 'creditors_due_after_one_year']:
+            value = getattr(financial_data, field, None)
+            if value is not None and value > 0:
+                issues.append(f"{field} should be negative but got positive value: {value:,}")
+        
+        # Check 5: Net Assets vs Total Equity Consistency
+        if (financial_data.net_assets is not None and financial_data.total_equity is not None 
+            and abs(financial_data.net_assets - financial_data.total_equity) > 1000):
+            issues.append(f"Net assets {financial_data.net_assets:,} doesn't match total equity {financial_data.total_equity:,}")
+        
+        # Check 6: Reasonable Revenue Values (basic sanity check)
+        if financial_data.turnover is not None:
+            if financial_data.turnover < 100000:  # Less than £100k seems too low
+                issues.append(f"Revenue seems unusually low: {financial_data.turnover:,} - check for scale issues")
+            elif financial_data.turnover > 1000000000:  # More than £1B seems too high for Championship
+                issues.append(f"Revenue seems unusually high: {financial_data.turnover:,} - check for scale issues")
+        
+        return len(issues) == 0, issues
 
