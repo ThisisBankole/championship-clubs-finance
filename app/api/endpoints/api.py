@@ -1,7 +1,7 @@
 """
 API endpoints - all in one file for simplicity
 """
-
+from app.services.cache.redis_cache import cache_service
 import structlog
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
@@ -62,14 +62,6 @@ api_router.include_router(
 async def download_all_documents():
     """
     Download and process financial documents for all 24 National League clubs
-    
-    This endpoint will:
-    1. Get latest filing information from Companies House for all 24 clubs
-    2. Download PDF documents 
-    3. Upload PDFs to Azure Blob Storage
-    4. Trigger Azure AI Search processing automatically
-    
-    Returns summary of processing results for each club.
     """
     
     logger.info("Starting document processing for all National League clubs")
@@ -81,6 +73,12 @@ async def download_all_documents():
         # Create summary statistics
         successful = len([r for r in results if r.status == "success"])
         failed = len([r for r in results if r.status != "success"])
+        
+        # Invalidate cache if any documents were processed successfully
+        if successful > 0:
+            cache_service.delete_pattern("clubs:*")
+            cache_service.delete_pattern("clubs_search:*")
+            logger.info("Invalidated clubs cache after document processing")
         
         logger.info("Document processing completed",
                    total_clubs=len(results),
@@ -96,16 +94,10 @@ async def download_all_documents():
             detail=f"Document processing failed: {str(e)}"
         )
 
-
 @api_router.post("/processing/download-single-club/{club_name}", response_model=ClubFinancialData)
 async def download_single_club(club_name: str):
     """
     Download and process financial documents for a specific club
-    
-    Args:
-        club_name: Name of the club (e.g., "Aldershot Town", "Forest Green Rovers")
-    
-    Returns club processing result.
     """
     
     logger.info("Starting document processing for single club", club_name=club_name)
@@ -119,6 +111,12 @@ async def download_single_club(club_name: str):
                 status_code=404,
                 detail=f"Club '{club_name}' not found in National League database"
             )
+        
+        # Invalidate cache if processing was successful
+        if result.status == "success":
+            cache_service.delete_pattern("clubs:*")
+            cache_service.delete_pattern("clubs_search:*")
+            logger.info("Invalidated clubs cache after single club processing", club_name=club_name)
         
         logger.info("Single club processing completed",
                    club_name=club_name,
@@ -184,18 +182,43 @@ async def get_processing_status():
     
 @api_router.get("/clubs")
 async def get_all_clubs():
-    """Get all clubs with structured club information"""
+    """Get all clubs with structured club information - CACHED"""
+    
+    # Check cache first
+    cache_key = "clubs:all"
+    cached_result = cache_service.get(cache_key)
+    if cached_result:
+        logger.info("Returning cached clubs data")
+        return cached_result
+    
+    # Fetch from Azure Search
     search_service = FinancialSearchService()
     results = await search_service.search_with_club_info()
     
-    return {
+    response_data = {
         "total": len(results),
-        "clubs": results
+        "clubs": results,
+        "cached_at": None  # Will be set when cached
     }
+    
+    # Cache for 30 minutes
+    cache_service.set(cache_key, response_data, ttl=3600)
+    logger.info("Cached clubs data", total_clubs=len(results))
+    
+    return response_data
 
 @api_router.get("/clubs/{club_name}")
 async def get_club_by_name(club_name: str):
-    """Get specific club data by name"""
+    """Get specific club data by name - CACHED"""
+    
+    # Check cache first
+    cache_key = f"clubs:by_name:{club_name.lower()}"
+    cached_result = cache_service.get(cache_key)
+    if cached_result:
+        logger.info("Returning cached club data", club_name=club_name)
+        return cached_result
+    
+    # Fetch from Azure Search
     search_service = FinancialSearchService()
     
     # Search using the clean club_name field
@@ -207,22 +230,59 @@ async def get_club_by_name(club_name: str):
         query = f'club_name:*{club_name}*'
         results = await search_service.search_with_club_info(query)
     
-    return {
+    response_data = {
         "club_name": club_name,
         "found": len(results),
         "documents": results
     }
+    
+    # Cache individual club for 1 hour
+    cache_service.set(cache_key, response_data, ttl=3600)
+    logger.info("Cached individual club data", club_name=club_name)
+    
+    return response_data
 
 @api_router.get("/clubs/company/{company_number}")
 async def get_club_by_company_number(company_number: str):
-    """Get club by company registration number"""
+    """Get club by company registration number - CACHED"""
+    
+    # Check cache first  
+    cache_key = f"clubs:by_company:{company_number}"
+    cached_result = cache_service.get(cache_key)
+    if cached_result:
+        logger.info("Returning cached club by company", company_number=company_number)
+        return cached_result
+    
+    # Fetch from Azure Search
     search_service = FinancialSearchService()
     
     query = f'company_number:"{company_number}"'
     results = await search_service.search_with_club_info(query)
     
-    return {
+    response_data = {
         "company_number": company_number,
         "found": len(results),
         "documents": results
+    }
+    
+    # Cache for 1 hour
+    cache_service.set(cache_key, response_data, ttl=3600)
+    logger.info("Cached club by company number", company_number=company_number)
+    
+    return response_data
+
+@api_router.post("/cache/invalidate/clubs")
+async def invalidate_clubs_cache():
+    """Invalidate all clubs cache - call this when data is updated"""
+    cache_service.delete_pattern("clubs:*")
+    cache_service.delete_pattern("clubs_search:*")
+    logger.info("Invalidated all clubs cache")
+    return {"status": "success", "message": "Clubs cache invalidated"}
+
+@api_router.get("/cache/status")
+async def cache_status():
+    """Get cache status"""
+    return {
+        "redis_connected": cache_service.redis_client is not None,
+        "cache_active": True if cache_service.redis_client else False
     }

@@ -3,6 +3,7 @@ import structlog
 import subprocess
 import time
 from app.services.data_combiner.market_data_combiner import MarketDataCombiner
+from app.services.cache.redis_cache import cache_service
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -33,11 +34,17 @@ async def update_championship_data():
         if result["status"] == "error":
             raise HTTPException(status_code=500, detail=result["message"])
         
+        # IMPORTANT: Invalidate cache after data update
+        cache_service.delete_pattern("clubs:*")
+        cache_service.delete_pattern("clubs_search:*")
+        logger.info("Invalidated clubs cache after championship data update")
+        
         logger.info("Championship data update pipeline completed successfully")
         return {
             "status": "success",
             "container_execution": container_result,
             "data_combination": result,
+            "cache_invalidated": True,
             "timestamp": time.time()
         }
         
@@ -129,6 +136,11 @@ async def combine_market_data():
         
         if result["status"] == "error":
             raise HTTPException(status_code=500, detail=result["message"])
+        
+        # IMPORTANT: Invalidate cache when data is updated
+        cache_service.delete_pattern("clubs:*")
+        cache_service.delete_pattern("clubs_search:*")
+        logger.info("Invalidated clubs cache after data combination")
         
         logger.info("Market data combination completed", result=result)
         return result
