@@ -12,3 +12,5 @@ export const clubsApi = {
   getClubByName: (clubName) => api.get(`/api/v1/clubs/${clubName}`),
 
 };
+
+export { clubDescriptionsApi } from './cms';
