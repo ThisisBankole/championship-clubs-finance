@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { clubsApi } from './services/api';
@@ -26,11 +25,10 @@ function App() {
     fetchClubs();
   }, []);
 
-
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <div className="spinner-border text-primary" role="status">
+        <div className="spinner-border text-light" role="status">
           <span className="visually-hidden">Loading clubs...</span>
         </div>
       </div>
@@ -46,16 +44,14 @@ function App() {
     );
   }
 
-  // Just add Router around your existing JSX
   return (
     <Router>
-      <div className="min-vh-100" style={{ backgroundColor: '#f8f9fa' }}>
-        <nav className="navbar navbar-light bg-white border-bottom">
-          <div className="container-fluid px-4">
-            <span className="navbar-brand mb-0 h1 fw-bold" style={{ fontFamily: 'var(--font-mono)' }}>
-              ball finance 
+      <div className="min-vh-100">
+        <nav className="dark-nav">
+          <div className="container-fluid px-4 py-3">
+            <span className="navbar-brand mb-0 h1 fw-bold" style={{ fontFamily: 'var(--font-jet)' }}>
+              ledger 
             </span>
-           
           </div>
         </nav>
         

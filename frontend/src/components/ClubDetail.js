@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams , useNavigate} from 'react-router-dom';
 import { clubsApi, clubDescriptionsApi } from '../services/api';
 import { clubNameToSlug } from '../utils/clubUtils';
+
 
 const ClubDetail = () => {
   const { clubName } = useParams();
   const [club, setClub] = useState(null);
+  const navigate = useNavigate();
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,7 +19,6 @@ const ClubDetail = () => {
         
         if (response.data.documents && response.data.documents.length > 0) {
           setClub(response.data.documents[0]); 
-
 
           try {
             const clubSlug = clubNameToSlug(response.data.documents[0].club_name);
@@ -43,7 +44,6 @@ const ClubDetail = () => {
     fetchClub();
   }, [clubName]);
 
-  // Data classification function
   const getDataTier = (club) => {
     if (!club) return 'basic';
     
@@ -95,11 +95,8 @@ const ClubDetail = () => {
 
   return (
     <div className="container mt-4">
-      {/* Universal Header - All clubs get this */}
+      <ClubHeader club={club} description={description} navigate={navigate} />
       
-      <ClubHeader club={club} description={description} />
-      
-      {/* Adaptive Content based on data tier */}
       {dataTier === 'rich' && <RichDataView club={club} formatCurrency={formatCurrency} />}
       {dataTier === 'core' && <CoreDataView club={club} />}
       {dataTier === 'basic' && <BasicDataView club={club} />}
@@ -108,19 +105,32 @@ const ClubDetail = () => {
 };
 
 // Universal header component
-const ClubHeader = ({ club, description }) => {
+const ClubHeader = ({ club, description , navigate}) => {
   return (
+    
     <div className="row mb-4">
+      
       <div className="col-12">
-        <div className="card border-0 shadow-sm">
+        <button 
+            onClick={() => navigate(-1)}
+            className="btn btn-link text-muted p-0 mb-3"
+            style={{ textDecoration: 'none' }}
+          >
+            <i className="bi bi-arrow-left me-2" style={{ fontSize: '18px' }}></i>
+            Back
+          </button>
+
+
+        <div className="card">
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center">
+               
               <div>
-                <h1 className="h2 mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
+                <h1 className="h2 mb-2" style={{ fontFamily: 'var(--font-slab)' }}>
                   {club.club_name}
                 </h1>
 
-                {/* Add description here */}
                 {description && (
                   <p className="text-muted mb-0" style={{ 
                     fontSize: '12px', 
@@ -135,6 +145,7 @@ const ClubHeader = ({ club, description }) => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };
@@ -173,7 +184,6 @@ const RichDataView = ({ club, formatCurrency }) => {
       {/* Tab Content */}
       {activeTab === 'overview' && <OverviewTab club={club} formatCurrency={formatCurrency} />}
       {activeTab === 'performance' && <PerformanceTab club={club} formatCurrency={formatCurrency} />}
-      
     </>
   );
 };
@@ -221,7 +231,7 @@ const FinancialHighlights = ({ club }) => {
   };
 
   return (
-    <div className="card border-0 shadow-sm mb-4">
+    <div className="card mb-4">
       <div className="card-body">
         <div className="row g-3">
           {club.total_assets && (
@@ -243,7 +253,6 @@ const FinancialHighlights = ({ club }) => {
               </div>
             </div>
           )}
-
 
           {club.total_equity && (
             <div className="col-md-6">
@@ -268,8 +277,7 @@ const PlayersMarketValue = ({ club, formatCurrency }) => {
   }
 
   return (
-    <div className="card border-0 shadow-sm mb-4">
-     
+    <div className="card mb-4">
       <div className="card-body">
         <div className="row g-1">
           {club.current_market_value_gbp && (
@@ -280,10 +288,159 @@ const PlayersMarketValue = ({ club, formatCurrency }) => {
               </div>
             </div>
           )}
-          
-          
+        </div>
+      </div>
+    </div>
+  );
+};
 
-         
+// Add this new component after your existing components
+const FinancialRatios = ({ club }) => {
+  // Calculate ratios
+  const calculateRatios = () => {
+    const ratios = {};
+    
+    // Return on Equity (ROE)
+    if (club.operating_profit && club.net_assets && club.net_assets !== 0) {
+      ratios.roe = (club.operating_profit / Math.abs(club.net_assets)) * 100;
+    }
+    
+    // Return on Total Assets (ROA)
+    if (club.operating_profit && club.total_assets && club.total_assets !== 0) {
+      ratios.roa = (club.operating_profit / club.total_assets) * 100;
+    }
+    
+    // Current Ratio
+    if (club.current_assets && club.creditors_due_within_one_year && club.creditors_due_within_one_year !== 0) {
+      ratios.currentRatio = club.current_assets / Math.abs(club.creditors_due_within_one_year);
+    }
+    
+    // Debt/Equity Ratio
+    if (club.total_liabilities && club.net_assets && club.net_assets !== 0) {
+      ratios.debtEquity = Math.abs(club.total_liabilities) / Math.abs(club.net_assets);
+    }
+    
+    // Equity/Total Assets
+    if (club.net_assets && club.total_assets && club.total_assets !== 0) {
+      ratios.equityAssets = (Math.abs(club.net_assets) / club.total_assets) * 100;
+    }
+    
+    // Debt/Total Assets
+    if (club.total_liabilities && club.total_assets && club.total_assets !== 0) {
+      ratios.debtAssets = (Math.abs(club.total_liabilities) / club.total_assets) * 100;
+    }
+    
+    return ratios;
+  };
+
+  const ratios = calculateRatios();
+  
+  // Don't show if no ratios can be calculated
+  if (Object.keys(ratios).length === 0) {
+    return null;
+  }
+
+  const formatRatio = (value, isPercentage = false, decimals = 1) => {
+    if (value === undefined || value === null) return 'N/A';
+    if (isPercentage) {
+      return `${value.toFixed(decimals)}%`;
+    }
+    return value.toFixed(decimals);
+  };
+
+  const getRatioColor = (ratio, value) => {
+    if (value === undefined || value === null) return 'text-muted';
+    
+    switch (ratio) {
+      case 'roe':
+        return value > 15 ? 'text-success' : value > 5 ? 'text-warning' : 'text-danger';
+      case 'roa':
+        return value > 5 ? 'text-success' : value > 2 ? 'text-warning' : 'text-danger';
+      case 'currentRatio':
+        return value > 1.2 ? 'text-success' : value > 0.8 ? 'text-warning' : 'text-danger';
+      case 'debtEquity':
+        return value < 1 ? 'text-success' : value < 2 ? 'text-warning' : 'text-danger';
+      case 'equityAssets':
+        return value > 30 ? 'text-success' : value > 20 ? 'text-warning' : 'text-danger';
+      case 'debtAssets':
+        return value < 60 ? 'text-success' : value < 80 ? 'text-warning' : 'text-danger';
+      default:
+        return 'text-muted';
+    }
+  };
+
+  return (
+    <div className="card mb-4">
+      <div className="card-body">
+    
+        <div className="row g-3">
+          {/* Row 1 */}
+          {ratios.roe !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">RETURN ON EQUITY</h6>
+                <div className={`h5 mb-0 ${getRatioColor('roe', ratios.roe)}`}>
+                  {formatRatio(ratios.roe, true)}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {ratios.roa !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">RETURN ON ASSETS</h6>
+                <div className={`h5 mb-0 ${getRatioColor('roa', ratios.roa)}`}>
+                  {formatRatio(ratios.roa, true)}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {ratios.currentRatio !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">CURRENT RATIO</h6>
+                <div className={`h5 mb-0 ${getRatioColor('currentRatio', ratios.currentRatio)}`}>
+                  {formatRatio(ratios.currentRatio, false, 2)}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Row 2 */}
+          {ratios.debtEquity !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">DEBT/EQUITY RATIO</h6>
+                <div className={`h5 mb-0 ${getRatioColor('debtEquity', ratios.debtEquity)}`}>
+                  {formatRatio(ratios.debtEquity, false, 2)}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {ratios.equityAssets !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">EQUITY/TOTAL ASSETS</h6>
+                <div className={`h5 mb-0 ${getRatioColor('equityAssets', ratios.equityAssets)}`}>
+                  {formatRatio(ratios.equityAssets, true)}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {ratios.debtAssets !== undefined && (
+            <div className="col-md-4">
+              <div className="border rounded p-3">
+                <h6 className="text-muted small mb-1">DEBT/TOTAL ASSETS</h6>
+                <div className={`h5 mb-0 ${getRatioColor('debtAssets', ratios.debtAssets)}`}>
+                  {formatRatio(ratios.debtAssets, true)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -292,8 +449,8 @@ const PlayersMarketValue = ({ club, formatCurrency }) => {
 
 const ClubContext = ({ club }) => {
   return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-header bg-white">
+    <div className="card">
+      <div className="card-header">
         <h6 className="mb-0">About This Data</h6>
       </div>
       <div className="card-body">
@@ -307,8 +464,8 @@ const ClubContext = ({ club }) => {
 
 const EssentialInfo = ({ club }) => {
   return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-header bg-white">
+    <div className="card">
+      <div className="card-header">
         <h5 className="mb-0">Essential Information</h5>
       </div>
       <div className="card-body">
@@ -329,8 +486,8 @@ const EssentialInfo = ({ club }) => {
 
 const MarketData = ({ club }) => {
   return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-header bg-white">
+    <div className="card">
+      <div className="card-header">
         <h5 className="mb-0">Market Information</h5>
       </div>
       <div className="card-body">
@@ -345,9 +502,14 @@ const MarketData = ({ club }) => {
 // Tab components for rich data view
 const OverviewTab = ({ club, formatCurrency }) => (
   <div className="row">
-    <div className="col-12">
+    <div className="col-md-8">
       <FinancialHighlights club={club} />
+      <FinancialRatios club={club} />
+     
+    </div>
+    <div className="col-md-4">
       <PlayersMarketValue club={club} formatCurrency={formatCurrency} />
+     
     </div>
   </div>
 );
@@ -358,6 +520,7 @@ const PerformanceTab = ({ club, formatCurrency }) => {
   const hasOperatingData = club.operating_profit !== null || club.operating_profit !== undefined;
   const hasPlayerData = club.profit_on_player_disposals || club.player_wages || club.player_amortization;
   const hasCostData = club.administrative_expenses || club.profit_loss_before_tax;
+  const hasCashFlowData = club.operating_cash_flow || club.investing_cash_flow || club.financing_cash_flow; 
 
   // Calculate revenue breakdown percentages
   const calculateRevenuePercentages = () => {
@@ -388,10 +551,8 @@ const PerformanceTab = ({ club, formatCurrency }) => {
       metrics.wagesPercentage = (Math.abs(club.player_wages) / club.revenue) * 100;
     }
     
-    // Admin Costs as % of Revenue
-    if (club.administrative_expenses && club.revenue) {
-      metrics.adminPercentage = (Math.abs(club.administrative_expenses) / club.revenue) * 100;
-    }
+  
+   
     
     // Total Operating Costs
     if (club.administrative_expenses || club.player_wages || club.staff_costs_total) {
@@ -421,60 +582,58 @@ const PerformanceTab = ({ club, formatCurrency }) => {
       <div className="col-md-8">
         {/* Revenue Sources Breakdown with visualization */}
         {hasRevenueBreakdown && (
-          <div className="card border-0 shadow-sm mb-4">
-            
+          <div className="card mb-4">
             <div className="card-body">
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  <div className="dark-metric-label">
                     TOTAL REVENUE
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: '#198754' }}>
+                  <div className="dark-metric-value text-success">
                     {formatCurrency(club.revenue)}
                   </div>
                 </div>
               </div>
               
-              <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+              <div className="dark-metric-label mb-2">
                 REVENUE BREAKDOWN
               </div>
               
               {/* Revenue visualization bar */}
-              <div style={{
-                height: '200px',
+              <div className="dark-chart-bar" style={{
+                height: '20px',
                 background: `linear-gradient(90deg, 
                   #0d6efd 0% ${revenueBreakdown.broadcasting.percentage}%, 
                   #198754 ${revenueBreakdown.broadcasting.percentage}% ${revenueBreakdown.broadcasting.percentage + revenueBreakdown.commercial.percentage}%, 
                   #fd7e14 ${revenueBreakdown.broadcasting.percentage + revenueBreakdown.commercial.percentage}% ${revenueBreakdown.broadcasting.percentage + revenueBreakdown.commercial.percentage + revenueBreakdown.matchday.percentage}%, 
                   #6c757d ${revenueBreakdown.broadcasting.percentage + revenueBreakdown.commercial.percentage + revenueBreakdown.matchday.percentage}% 100%)`,
                 borderRadius: '4px',
-                position: 'relative'
+                marginBottom: '10px'
               }}></div>
 
-              
               {/* Revenue legend */}
-              <div style={{ display: 'flex', gap: '15px', marginTop: '10px', flexWrap: 'wrap' }}>
+              <div className="dark-chart-legend">
                 {club.broadcasting_revenue && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#0d6efd' }}></div>
+                  <div className="dark-legend-item">
+                    <div className="dark-legend-color" style={{ background: '#0d6efd' }}></div>
                     <span>Broadcasting: {formatCurrency(club.broadcasting_revenue)} ({Math.round(revenueBreakdown.broadcasting.percentage)}%)</span>
                   </div>
                 )}
                 {club.commercial_revenue && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#198754' }}></div>
+                  <div className="dark-legend-item">
+                    <div className="dark-legend-color" style={{ background: '#198754' }}></div>
                     <span>Commercial: {formatCurrency(club.commercial_revenue)} ({Math.round(revenueBreakdown.commercial.percentage)}%)</span>
                   </div>
                 )}
                 {club.matchday_revenue && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#fd7e14' }}></div>
+                  <div className="dark-legend-item">
+                    <div className="dark-legend-color" style={{ background: '#fd7e14' }}></div>
                     <span>Matchday: {formatCurrency(club.matchday_revenue)} ({Math.round(revenueBreakdown.matchday.percentage)}%)</span>
                   </div>
                 )}
                 {revenueBreakdown.other.amount > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#6c757d' }}></div>
+                  <div className="dark-legend-item">
+                    <div className="dark-legend-color" style={{ background: '#6c757d' }}></div>
                     <span>Other: {formatCurrency(revenueBreakdown.other.amount)} ({Math.round(revenueBreakdown.other.percentage)}%)</span>
                   </div>
                 )}
@@ -483,19 +642,17 @@ const PerformanceTab = ({ club, formatCurrency }) => {
           </div>
         )}
 
-        {/* Operating Performance  */}
+        {/* Operating Performance */}
         {hasOperatingData && (
-          <div className="card border-0 shadow-sm mb-4">
+          <div className="card mb-4">
             <div className="card-body">
-             
-              
               <div className="row">
                 {club.operating_profit !== null && club.operating_profit !== undefined && (
                   <div className="col-md-4">
-                    <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div className="dark-metric-label">
                       OPERATING PROFIT/LOSS
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: club.operating_profit >= 0 ? '#198754' : '#dc3545' }}>
+                    <div className={`dark-metric-value ${club.operating_profit >= 0 ? 'text-success' : 'text-danger'}`}>
                       {formatCurrency(club.operating_profit)}
                     </div>
                   </div>
@@ -503,43 +660,82 @@ const PerformanceTab = ({ club, formatCurrency }) => {
                 
                 {metrics.operatingMargin !== undefined && (
                   <div className="col-md-4">
-                    <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div className="dark-metric-label">
                       OPERATING MARGIN
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: metrics.operatingMargin >= 0 ? '#198754' : '#dc3545' }}>
+                    <div className={`dark-metric-value ${metrics.operatingMargin >= 0 ? 'text-success' : 'text-danger'}`}>
                       {Math.round(metrics.operatingMargin)}%
                     </div>
                   </div>
                 )}
 
                 {club.profit_loss_before_tax !== null && club.profit_loss_before_tax !== undefined && (
-                        <div className="col-md-4">
-                          <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                            PROFIT/LOSS BEFORE TAX
-                          </div>
-                          <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: club.profit_loss_before_tax >= 0 ? '#198754' : '#dc3545' }}>
-                            {formatCurrency(club.profit_loss_before_tax)}
-                          </div>
-                        </div>
+                  <div className="col-md-4">
+                    <div className="dark-metric-label">
+                      PROFIT/LOSS BEFORE TAX
+                    </div>
+                    <div className={`dark-metric-value ${club.profit_loss_before_tax >= 0 ? 'text-success' : 'text-danger'}`}>
+                      {formatCurrency(club.profit_loss_before_tax)}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Player Business - NEW */}
+        {hasCashFlowData && (
+                <div className="card mb-4">
+                  <div className="card-body">
+                    <div className="row">
+                      {club.operating_cash_flow && (
+                        <div className="col-md-4">
+                          <div className="dark-metric-label">
+                            OPERATING CASH FLOW
+                          </div>
+                          <div className={`dark-metric-value ${club.operating_cash_flow >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {formatCurrency(club.operating_cash_flow)}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {club.investing_cash_flow && (
+                        <div className="col-md-4">
+                          <div className="dark-metric-label">
+                            INVESTING CASH FLOW
+                          </div>
+                          <div className={`dark-metric-value ${club.investing_cash_flow >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {formatCurrency(club.investing_cash_flow)}
+                          </div>
+                        </div>
+                      )}
+
+                      {club.financing_cash_flow && (
+                        <div className="col-md-4">
+                          <div className="dark-metric-label">
+                            FINANCING CASH FLOW
+                          </div>
+                          <div className={`dark-metric-value ${club.financing_cash_flow >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {formatCurrency(club.financing_cash_flow)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+        {/* Player Business */}
         {hasPlayerData && (
-          <div className="card border-0 shadow-sm mb-4">
+          <div className="card mb-4">
             <div className="card-body">
-             
-              
               <div className="row">
                 {club.profit_on_player_disposals && (
                   <div className="col-md-4">
-                    <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div className="dark-metric-label">
                       PLAYER TRADING INCOME
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: '#198754' }}>
+                    <div className="dark-metric-value text-success">
                       {formatCurrency(club.profit_on_player_disposals)}
                     </div>
                   </div>
@@ -547,10 +743,10 @@ const PerformanceTab = ({ club, formatCurrency }) => {
                 
                 {club.player_wages && (
                   <div className="col-md-4">
-                    <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div className="dark-metric-label">
                       PLAYER WAGES
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: '#dc3545' }}>
+                    <div className="dark-metric-value text-danger">
                       {formatCurrency(Math.abs(club.player_wages))}
                     </div>
                   </div>
@@ -558,10 +754,10 @@ const PerformanceTab = ({ club, formatCurrency }) => {
                 
                 {metrics.playerInvestmentEfficiency !== undefined && (
                   <div className="col-md-4">
-                    <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div className="dark-metric-label">
                       PLAYER INVESTMENT EFFICIENCY
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: '600', margin: 0, color: metrics.playerInvestmentEfficiency >= 1 ? '#198754' : '#dc3545' }}>
+                    <div className={`dark-metric-value ${metrics.playerInvestmentEfficiency >= 1 ? 'text-success' : 'text-danger'}`}>
                       {metrics.playerInvestmentEfficiency.toFixed(1)}x
                     </div>
                   </div>
@@ -571,53 +767,22 @@ const PerformanceTab = ({ club, formatCurrency }) => {
           </div>
         )}
       </div>
-    
 
-      {/* Sidebar - NEW */}
+      {/* Sidebar */}
       <div className="col-md-4">
         {/* Key Ratios */}
-        {(metrics.wagesPercentage || metrics.adminPercentage || metrics.operatingMargin) && (
-          <div className="card border-0 shadow-sm mb-4">
-            <div className="card-body">
-             
-              
-              {metrics.wagesPercentage !== undefined && (
-                <div className="mb-3">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                    WAGES % OF REVENUE
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', margin: 0, color: metrics.wagesPercentage > 70 ? '#dc3545' : '#6c757d' }}>
-                    {Math.round(metrics.wagesPercentage)}%
-                  </div>
-                </div>
-              )}
-              
-              {metrics.adminPercentage !== undefined && (
-                <div className="mb-3">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                    ADMIN % OF REVENUE
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', margin: 0, color: '#6c757d' }}>
-                    {Math.round(metrics.adminPercentage)}%
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+      
 
         {/* Cost Structure */}
         {hasCostData && (
-          <div className="card border-0 shadow-sm mb-4">
+          <div className="card mb-4">
             <div className="card-body">
-            
-              
               {metrics.totalOperatingCosts && (
                 <div className="mb-3">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  <div className="dark-metric-label">
                     TOTAL OPERATING COSTS
                   </div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', margin: 0, color: '#dc3545' }}>
+                  <div className="dark-metric-value-sm text-danger">
                     {formatCurrency(metrics.totalOperatingCosts)}
                   </div>
                 </div>
@@ -625,10 +790,10 @@ const PerformanceTab = ({ club, formatCurrency }) => {
               
               {club.administrative_expenses && (
                 <div className="mb-3">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  <div className="dark-metric-label">
                     ADMINISTRATIVE EXPENSES
                   </div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: '#6c757d' }}>
+                  <div className="dark-metric-value-xs text-muted">
                     {formatCurrency(Math.abs(club.administrative_expenses))}
                   </div>
                 </div>
@@ -636,25 +801,23 @@ const PerformanceTab = ({ club, formatCurrency }) => {
 
               {club.staff_costs_total && (
                 <div className="mb-3">
-                  <div style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  <div className="dark-metric-label">
                     STAFF COST
                   </div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: '#6c757d' }}>
+                  <div className="dark-metric-value-xs text-muted">
                     {formatCurrency(Math.abs(club.staff_costs_total))}
                   </div>
                 </div>
               )}
-              
-              
             </div>
           </div>
         )}
       </div>
 
       {/* If no performance data available */}
-      {!hasRevenueBreakdown && !hasOperatingData && !hasPlayerData && !hasCostData &&(
+      {!hasRevenueBreakdown && !hasOperatingData && !hasPlayerData && !hasCostData && !hasCashFlowData &&  (
         <div className="col-12">
-          <div className="card border-0 shadow-sm">
+          <div className="card">
             <div className="card-body text-center py-5">
               <h5 className="text-muted">Performance Details</h5>
               <p className="text-muted mb-0">Detailed performance analysis will be displayed when revenue and cost breakdowns are available.</p>
@@ -665,7 +828,5 @@ const PerformanceTab = ({ club, formatCurrency }) => {
     </div>
   );
 };
-
-
 
 export default ClubDetail;

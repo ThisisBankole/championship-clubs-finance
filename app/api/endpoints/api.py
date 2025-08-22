@@ -184,28 +184,49 @@ async def get_processing_status():
 async def get_all_clubs():
     """Get all clubs with structured club information - CACHED"""
     
-    # Check cache first
-    cache_key = "clubs:all"
-    cached_result = cache_service.get(cache_key)
-    if cached_result:
-        logger.info("Returning cached clubs data")
-        return cached_result
+    print("🔥 CLUBS ENDPOINT CALLED - TESTING CACHE")
     
-    # Fetch from Azure Search
-    search_service = FinancialSearchService()
-    results = await search_service.search_with_club_info()
-    
-    response_data = {
-        "total": len(results),
-        "clubs": results,
-        "cached_at": None  # Will be set when cached
-    }
-    
-    # Cache for 30 minutes
-    cache_service.set(cache_key, response_data, ttl=3600)
-    logger.info("Cached clubs data", total_clubs=len(results))
-    
-    return response_data
+    try:
+        # Test cache service
+        print("🔥 Testing cache service")
+        cache_key = "clubs:all"
+        
+        # Try to get from cache
+        print(f"🔥 Checking cache for key: {cache_key}")
+        cached_result = cache_service.get(cache_key)
+        
+        if cached_result:
+            print("🔥 CACHE HIT - Returning cached data")
+            return cached_result
+        else:
+            print("🔥 CACHE MISS - Fetching from Azure Search")
+        
+        # Fetch from Azure Search
+        search_service = FinancialSearchService()
+        results = await search_service.search_with_club_info()
+        
+        response_data = {
+            "total": len(results),
+            "clubs": results,
+            "cached_at": None
+        }
+        
+        # Try to cache
+        print(f"🔥 Storing in cache with key: {cache_key}")
+        cache_service.set(cache_key, response_data, ttl=3600)
+        print(f"🔥 Cached {len(results)} clubs successfully")
+        
+        return response_data
+        
+    except Exception as e:
+        print(f"🔥 CACHE ERROR: {str(e)}")
+        # Fallback to original logic
+        search_service = FinancialSearchService()
+        results = await search_service.search_with_club_info()
+        return {
+            "total": len(results),
+            "clubs": results
+        }
 
 @api_router.get("/clubs/{club_name}")
 async def get_club_by_name(club_name: str):

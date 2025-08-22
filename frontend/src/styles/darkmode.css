@@ -1,0 +1,157 @@
+/* Dark Mode Variables */
+:root {
+    --bg-primary: #000000;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #2a2a2a;
+    --border-color: #333333;
+    --text-primary: #e0dfdf;
+    --text-secondary: #cccccc;
+    --text-muted: #888888;
+    --card-bg: #1a1a1a;
+    --hover-bg: #2a2a2a;
+  }
+  
+  /* Global Dark Mode Styles */
+  body {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  /* Bootstrap Override for Dark Mode */
+  .card {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  .card-body {
+    background-color: var(--card-bg) !important;
+  }
+  
+  .card-header {
+    background-color: var(--card-bg) !important;
+    border-bottom-color: var(--border-color) !important;
+  }
+  
+  .text-muted {
+    color: var(--text-muted) !important;
+  }
+  
+  .border {
+    border-color: var(--border-color) !important;
+  }
+  
+  .nav-tabs {
+    border-bottom-color: var(--border-color) !important;
+  }
+  
+  .nav-tabs .nav-link {
+    background-color: transparent !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  .nav-tabs .nav-link.active {
+    background-color: var(--card-bg) !important;
+    border-bottom-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  .alert-danger {
+    background-color: var(--bg-secondary) !important;
+    border-color: #dc3545 !important;
+    color: var(--text-primary) !important;
+  }
+  
+  .spinner-border {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Custom Dark Mode Classes */
+  .dark-list-item {
+    border-bottom: 1px solid var(--border-color) !important;
+    transition: background-color 0.2s;
+  }
+  
+  .dark-list-item:hover {
+    background-color: var(--hover-bg) !important;
+  }
+  
+  .dark-nav {
+    background-color: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+  
+  .dark-container {
+    background-color: var(--card-bg) !important;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Performance Tab Specific Styles */
+.dark-metric-label {
+    font-size: 12px;
+    color: var(--text-muted) !important;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  
+  .dark-metric-value {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .dark-metric-value-sm {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .dark-metric-value-xs {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .dark-chart-bar {
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  
+  .dark-chart-legend {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .dark-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  
+  .dark-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+
+a, a:hover, a:focus, a:visited {
+    color: var(--text-primary) !important;
+    text-decoration: none !important;
+  }
+  
+
+  .dark-list-item a,
+  .dark-list-item a:hover,
+  .dark-list-item a:focus,
+  .dark-list-item a:visited {
+    color: var(--text-primary) !important;
+  }
