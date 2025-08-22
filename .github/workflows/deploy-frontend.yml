@@ -27,7 +27,7 @@ jobs:
       - name: Deploy to Pi Dokku
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.PI_HOST }}
+          host: ssh.arrakis.house
           username: ${{ secrets.PI_USER }}
           password: ${{ secrets.PI_PASSWORD }}
           script: |
