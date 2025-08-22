@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { clubsApi } from './services/api';
-import ClubGrid from './components/ClubGrid';
-import ClubDetail from './components/ClubDetail';
 import './App.css';
+
+// Lazy load components for better performance
+const ClubGrid = lazy(() => import('./components/ClubGrid'));
+const ClubDetail = lazy(() => import('./components/ClubDetail'));
 
 function App() {
   const [clubs, setClubs] = useState([]);
@@ -56,10 +58,18 @@ function App() {
         </nav>
         
         <main className="py-4">
-          <Routes>
-            <Route path="/" element={<ClubGrid clubs={clubs} />} />
-            <Route path="/club/:clubName" element={<ClubDetail />} />
-          </Routes>
+          <Suspense fallback={
+            <div className="d-flex justify-content-center mt-5">
+              <div className="spinner-border text-light" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<ClubGrid clubs={clubs} />} />
+              <Route path="/club/:clubName" element={<ClubDetail />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </Router>
