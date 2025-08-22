@@ -2,7 +2,7 @@ name: Deploy Frontend to arrakis.house
 on:
   push:
     branches: [master]
-    paths: ["frontend/**"]
+    
 
 jobs:
   deploy:
