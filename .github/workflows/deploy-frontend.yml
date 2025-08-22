@@ -1,4 +1,4 @@
-name: Deploy Frontend to arrakis.house
+name: Deploy to arrakis.house
 on:
   push:
     branches: [master]
