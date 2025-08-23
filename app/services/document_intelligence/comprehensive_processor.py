@@ -4,7 +4,7 @@ import asyncio
 from typing import Dict, Any, Optional
 import structlog
 from .client import DocumentIntelligenceService
-
+from app.services.document_intelligence.super_robust_uk_extractor import SuperRobustUKFinancialExtractor
 
 logger = structlog.get_logger()
 
@@ -173,33 +173,22 @@ class ComprehensiveDocumentProcessor:
                 print(f"\n🚀 STARTING FINANCIAL EXTRACTION FOR: {filename}")
                 
                 try:
-                    financial_data = await self.financial_extractor(result["cleaned_text"])
-                    print(f"DEBUG - ComprehensiveProcessor: operating_expenses = {getattr(financial_data, 'operating_expenses', None)}")
-                    print(f"DEBUG - ComprehensiveProcessor: net_income = {getattr(financial_data, 'net_income', None)}")
-                    print(f"DEBUG - ComprehensiveProcessor: total_equity = {getattr(financial_data, 'total_equity', None)}")
-                    print(f"   total_assets = {getattr(financial_data, 'total_assets', None)}")
-                    print(f"   total_liabilities = {getattr(financial_data, 'total_liabilities', None)}")
+           
+        
+                    # Create extractor instance
+                    robust_extractor = SuperRobustUKFinancialExtractor()
                     
-                    club_name = metadata.get("club_name", filename)
-                    is_valid, validation_issues = self.validate_extracted_data(financial_data, club_name)
+                    # Prepare sections for extraction
+                    sections = {
+                        'cleaned_text': result["cleaned_text"],
+                        'profit_loss': result["cleaned_text"],
+                        'balance_sheet': result["cleaned_text"],
+                    }
                     
-                    if not is_valid:
-                        logger.warning("Financial data validation issues found",
-                                    filename=filename,
-                                    club_name=club_name,
-                                    issues=validation_issues,
-                                    issue_count=len(validation_issues))
-                        
-                        # Log each issue individually for easier debugging
-                        for i, issue in enumerate(validation_issues, 1):
-                            logger.warning(f"Validation Issue {i}", 
-                                        filename=filename,
-                                        club_name=club_name,
-                                        issue=issue)
-                    else:
-                        logger.info("Financial data validation passed",
-                                filename=filename,
-                                club_name=club_name)
+                    # Extract using robust pattern matching
+                    financial_data = robust_extractor.extract_all_fields(sections)
+                    
+                    print(f"DEBUG - Robust extractor found {len([v for v in financial_data.values() if v is not None])} fields")
                     
                     # Update result with financial data
                     financial_fields = [
@@ -210,7 +199,7 @@ class ComprehensiveDocumentProcessor:
                         "operating_profit", "profit_loss_before_tax", "broadcasting_revenue",
                         "commercial_revenue", "matchday_revenue", "player_trading_income",
                         "player_wages", "player_amortization", "other_staff_costs",
-                        "stadium_costs", "administrative_expenses", "agent_fees", "operating_expenses", "net_income", "total_equity",
+                        "stadium_costs", "administrative_expenses", "agent_fees",  "net_income", "total_equity",
                         "cost_of_sales", "gross_profit", "gross_loss",
                         "interest_receivable", "interest_payable", "other_operating_income",
                         "staff_costs_total", "social_security_costs", "pension_costs",
@@ -223,22 +212,24 @@ class ComprehensiveDocumentProcessor:
                     
                     extracted_count = 0
                     for field in financial_fields:
-                        value = getattr(financial_data, field, None)
+                        value = financial_data.get(field)
                         result[field] = value
                         if value is not None:
                             extracted_count += 1
                             
-                    print(f"DEBUG - ComprehensiveProcessor result: operating_expenses = {result.get('operating_expenses')}")
-                    print(f"DEBUG - ComprehensiveProcessor result: net_income = {result.get('net_income')}")
-                    print(f"DEBUG - ComprehensiveProcessor result: total_equity = {result.get('total_equity')}")
-                    
-                    logger.info("Financial extraction completed",
-                               filename=filename,
-                               fields_extracted=extracted_count,
-                               validation_passed=is_valid,
-                               validation_issues=len(validation_issues) if validation_issues else 0
-                               )
+                    if financial_data.get('turnover') and not result.get('revenue'):
+                        result['revenue'] = financial_data['turnover']
                                
+                               
+                    print(f"DEBUG - Key extractions:")
+                    print(f"  turnover: {result.get('turnover'):,}" if result.get('turnover') else "  turnover: None")
+                    print(f"  admin_expenses: {result.get('administrative_expenses'):,}" if result.get('administrative_expenses') else "  admin_expenses: None")
+                    print(f"  cost_of_sales: {result.get('cost_of_sales'):,}" if result.get('cost_of_sales') else "  cost_of_sales: None")
+                    print(f"  player_amortization: {result.get('player_amortization'):,}" if result.get('player_amortization') else "  player_amortization: None")
+                    
+                    logger.info("Enhanced robust extraction completed",
+                                filename=filename,
+                                fields_extracted=extracted_count)
                 except Exception as e:
                     logger.error("Financial extraction failed",
                                 filename=filename,

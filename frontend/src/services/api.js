@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Frontend caching system
 const cache = new Map();
-const CACHE_TIME = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 50; // Prevent memory bloat
+const CACHE_TIME = 5 * 60 * 1000; 
+const MAX_CACHE_SIZE = 50; 
 
 // Cache utilities
 const getCachedData = (key) => {
