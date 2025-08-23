@@ -40,7 +40,7 @@ class FinancialData(BaseModel):
     is_abridged: Optional[bool] = None
     revenue: Optional[float] = None
     turnover: Optional[float] = None
-    # operating_expenses: Optional[float] = None  # REMOVED - doesn't exist in UK accounts
+   
     net_income: Optional[float] = None
     
     total_assets: Optional[float] = None
@@ -69,18 +69,22 @@ class FinancialData(BaseModel):
     gross_profit: Optional[float] = None
     gross_loss: Optional[float] = None
 
+
     interest_receivable: Optional[float] = None
     interest_payable: Optional[float] = None
     other_operating_income: Optional[float] = None
 
+   
     staff_costs_total: Optional[float] = None
     social_security_costs: Optional[float] = None
     pension_costs: Optional[float] = None
     depreciation_charges: Optional[float] = None
     operating_lease_charges: Optional[float] = None
 
+  
     profit_on_player_disposals: Optional[float] = None
     loss_on_player_disposals: Optional[float] = None
+
 
     intangible_assets: Optional[float] = None
     tangible_assets: Optional[float] = None
@@ -88,14 +92,19 @@ class FinancialData(BaseModel):
     stocks: Optional[float] = None
     debtors: Optional[float] = None
 
+   
     operating_cash_flow: Optional[float] = None
     investing_cash_flow: Optional[float] = None
     financing_cash_flow: Optional[float] = None
+
 
     gross_margin: Optional[float] = None
     operating_margin: Optional[float] = None
     debt_to_equity_ratio: Optional[float] = None
     
+    
+
+   
     document_type: Optional[str] = None
     profit_loss_filed: Optional[bool] = None
 
@@ -109,6 +118,7 @@ class RecordResult(BaseModel):
 
 class SkillResponse(BaseModel):
     values: List[RecordResult]
+
 
 def remove_ocr_artifacts(text: str) -> str:
     """
@@ -277,6 +287,7 @@ def extract_financial_context(text: str) -> str:
     
     return financial_text
 
+
 def extract_text_from_sections(text_sections: List[TextSection]) -> str:
     """
     Extract and combine text content from TextSection objects with cleaning
@@ -302,9 +313,10 @@ def extract_text_from_sections(text_sections: List[TextSection]) -> str:
     
     return financial_text
 
+
 async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
     """
-    ENHANCED: GPT-4 extraction optimized for specific cleaned text patterns
+    SIMPLIFIED: GPT-4 extraction optimized for pre-cleaned text input
     Enhanced with comprehensive UK football accounting expertise
     """
     
@@ -333,7 +345,7 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
             api_key=API_KEY,
         )
         
-        # ENHANCED: System prompt with comprehensive UK football expertise
+        # EXPERT-LEVEL: Enhanced system prompt with comprehensive UK football expertise
         system_prompt = """You are a highly specialized UK chartered accountant with extensive experience in auditing and analyzing the financial statements of football clubs in the English Football League (Championship, League One, League Two) and the National League. Your expertise is rooted in a deep understanding of FRS 102, UK GAAP, and the Companies Act 2006.
 
 **Core Expertise:**
@@ -344,6 +356,21 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
     * **Player Asset Management:** You are proficient in the accounting treatment of player registrations as intangible assets, including their amortisation and profit/loss on disposal.
     * **Cost Structures:** You are familiar with the typical cost structures of football clubs, including player wages, staff costs, and stadium operating costs.
 * **Companies House Filings:** You are adept at navigating the structure and terminology of financial statements filed with Companies House.
+
+**Contextual Awareness & Heuristics:**
+
+* **Revenue Benchmarks:** You are aware of typical revenue ranges for different leagues, which helps in validating extracted data:
+    * **Championship:** Broadcasting revenue can range from £8M to over £100M (including parachute payments).
+    * **League One:** Broadcasting revenue is typically in the £1.5M to £2.5M range.
+    * **League Two & National League:** Broadcasting revenue is generally under £1.5M.
+* **Financial Health Indicators:**
+    * **Wages to Turnover Ratio:** You know that for most clubs, player wages constitute 60-100% of turnover, and a ratio exceeding 80% can indicate financial strain.
+    * **Profitability:** You understand that operating losses are common, but you will also look for indicators of underlying profitability or financial distress.
+* **Key Notes to the Accounts:** You know that crucial details are often found in the notes to the financial statements, and you will specifically look for:
+    * **Turnover Note:** A breakdown of revenue streams.
+    * **Intangible Assets Note:** Details on the cost, amortisation, and net book value of player registrations.
+    * **Staff Costs Note:** Information on wages and salaries for both playing and non-playing staff.
+    * **Related Party Transactions Note:** Disclosures of transactions with the club's owners and directors.
 
 **UK Financial Statement Structures:**
 
@@ -375,10 +402,16 @@ async def extract_financial_metrics_with_gpt4(text: str) -> FinancialData:
     * CAPITAL AND RESERVES: Share capital, Reserves, Profit and loss account
     * TOTAL EQUITY
 
+* **Cash Flow Statement Structure:**
+    * Operating activities: Loss before tax, add back depreciation/amortisation, remove player disposal profits, working capital changes
+    * Investing activities: Player purchases (outflow), player sales (inflow), tangible asset purchases
+    * Financing activities: Loan receipts/repayments, share issues, interest payments
+
 **Your Task:**
+
 You will be provided with pre-cleaned text from a UK football club's financial statement. Your primary objective is to act as a meticulous financial data extractor. You will read and interpret the provided text to identify, extract, and structure key financial metrics according to the user's instructions."""
         
-        # ENHANCED: User prompt with specific pattern handling
+        # EXPERT-LEVEL: Enhanced user prompt with comprehensive extraction rules
         user_prompt = f"""**Objective:** From the provided pre-cleaned financial statement text, extract the key financial metrics for the specified accounting period.
 
 **CLEANED FINANCIAL TEXT:**
@@ -386,118 +419,152 @@ You will be provided with pre-cleaned text from a UK football club's financial s
 
 **CRITICAL EXTRACTION RULES & FINANCIAL MAPPING:**
 
-**ENHANCED EXTRACTION FOR YOUR SPECIFIC DATA PATTERNS:**
-
-**Scale Detection - Your Specific Formats:**
-* **"Table Data: 30 June 2024: £'000, 30 June 2023: £'000"** → ALL figures × 1,000
-* **"Table Data: £'000"** → ALL figures × 1,000
-* **Header showing "£'000, £'000"** → ALL numbers × 1,000
-* **Multi-column with £000 headers** → ALL numbers × 1,000
-
-**Examples from your data:**
-* "Table Data: £'000 : Turnover, Note: 1, 30 June 2024: 32,247" → Extract as 32,247,000
-* "2024: £'000, 2023: £'000 : Turnover: 84,001" → Extract as 84,001,000
-
-**Scale Validation:**
-* If you see a Turnover of 32,247 in a £'000 table, this becomes £32,247,000
-* If you see Cost of sales (47,927) in a £'000 table, this becomes £-47,927,000
-
-**Administrative Expenses Split Pattern (Sheffield United):**
-When you see this EXACT pattern:
-"Administrative expenses before player amortisation and impairment, 30 June 2024: (5,344)
-Player amortisation and impairment, 30 June 2024: (9,220)  
-Administrative expenses, 30 June 2024: (14,564)"
-
-EXTRACT:
-* administrative_expenses: -14564000 (use the TOTAL: 14,564, NOT the "before" amount)
-* player_amortization: -9220000 (use the specific player figure: 9,220)
-
-**Multi-Column Pattern (Southampton):**
-When you see this pattern:
-"Operations excluding player trading 2024 | Player trading 2024 | Total 2024 | Total 2023
-Turnover 4 84,001 - 84,001 145,467"
-
-EXTRACT from the "Total 2024" column (3rd number): 84,001,000
-
-**Date Selection:**
-"30 June 2024: 32,247, 30 June 2023: 28,594"
-→ ALWAYS use the most recent year (2024): 32,247,000
-
-**Revenue Breakdown Recovery:**
-If main turnover extraction works, look for breakdown in notes:
-* "Match day: X" or "Season and match day ticket sales: X" → matchday_revenue
-* "Broadcasting: Y" or "Football league distributions: Y" → broadcasting_revenue  
-* "Commercial income: Z" or "Sponsorship & advertising: Z" → commercial_revenue
-* Look for "Turnover analysed by class of business" section
-
-**Critical Field Recovery:**
-* **If turnover missing:** Look for "Revenue", "Total income", or first P&L line
-* **If cost_of_sales missing:** Look for first expense line after revenue, usually in parentheses
-* **If operating_profit missing:** Look for "Operating loss" or "Operating profit" line before interest
-* **If administrative_expenses missing:** Look for "Administrative expenses" (may be split as shown above)
-
-**Mandatory Scale Validation:**
-* Championship club turnover should be 20M-150M (8-9 digits)
-* If turnover is 5-6 digits, you missed the £'000 conversion
-* If administrative_expenses > -1M, likely missed scale conversion
-* All monetary values should be consistent in scale
-
 **1. MANDATORY - DETERMINE ACCOUNT TYPE**
-**`is_abridged` (boolean)**: Set to `true` if you find **ANY** of these:
-* The phrase **"abridged accounts"** or **"abridged balance sheet"**
+This is your most critical first task. You MUST classify the document as abridged or not.
+
+**`is_abridged` (boolean)**: Set to `true` if you find **ANY** of these definitive pieces of evidence:
+* The explicit phrase **"abridged accounts"** or **"abridged balance sheet"**
 * A reference to **"Section 444"** of the Companies Act 2006
-* **"small companies regime"**
-* **"The directors have chosen to not file a copy of the company's profit & loss account"**
+* A declaration that the accounts were prepared under the **"small companies regime"**
+* A statement that **"The directors have chosen to not file a copy of the company's profit & loss account"**
 
-**2. CRITICAL - UK BALANCE SHEET EQUATION**
-**Total Assets = Total Liabilities + Total Equity**
+**Default Condition:** If you find a clear Profit and Loss account with a "Turnover" figure and NONE of the abridged evidence above, set this to `false`.
 
-1. **Extract Total Assets:** Fixed Assets + Current Assets (most common UK format)
-2. **Extract Total Equity:** From "Net assets" (positive) or "Net liabilities" (negative)
-3. **Calculate Total Liabilities:** Total Assets - Total Equity
+**2. CRITICAL - SCALE DETECTION & CURRENCY CONVERSION**
+Before extracting ANY monetary values, you MUST identify the scale used throughout the document:
 
-**3. P&L STATEMENT FIELDS:**
-* **`turnover`**: "Turnover", "Revenue" from P&L header
+**Scale Detection Rules:**
+* Scan document headers, column headers, and footnotes for scale indicators
+* **"£'000", "£000", "thousands", "000s"** → ALL figures must be multiplied by 1,000
+* **"£m", "millions", "Million"** → ALL figures must be multiplied by 1,000,000
+* **"£" only with 7+ digit numbers** → Use figures as-is (full amounts)
+* **"£" only with 4-5 digit numbers** → Likely thousands, check context
+
+**Consistency Rule:** ALL monetary values in same document must use same scale conversion.
+* Numbers enclosed in parentheses are negative (e.g., "(2,500,000)" → -2500000)
+* Apply scale AFTER determining positive/negative: (1,234) in £'000 → -1,234,000
+
+**Examples:**
+* Document shows "£'000" and "Turnover: 32,271" → Extract as 32,271,000
+* Document shows "£" and "Turnover: 32,271,000" → Extract as 32,271,000
+
+**3. CRITICAL - UK BALANCE SHEET EQUATION VALIDATION**
+The balance sheet MUST always balance: **Total Assets = Total Liabilities + Total Equity**
+
+**Mandatory calculation process:**
+1. **Extract Total Assets:** 
+   * Look for explicit "Total assets" line first
+   * **UK FORMAT CALCULATION:** Fixed Assets + Current Assets (most common)
+   * **NEVER use "Total assets less current liabilities"** - this is a subtotal, NOT total assets
+   * Fallback: intangible_assets + tangible_assets + current_assets
+
+2. **Extract Total Equity:** 
+   * From "Net assets" (positive), "Net liabilities" (negative), or "Total equity"/"Total shareholder equity"
+
+3. **Calculate Total Liabilities:** 
+   * **Primary method:** Total Liabilities = Total Assets - Total Equity
+   * Backup: creditors_due_within_one_year + creditors_due_after_one_year + provisions
+
+4. **Validation:** Verify the equation balances (allow £1,000 tolerance for rounding)
+
+**Examples:**
+* Assets 77M, Net Liabilities (87M) → Total Liabilities = 77M + 87M = 164M
+* Assets 39M, Net Assets 12M → Total Liabilities = 39M - 12M = 27M
+
+**4. FINANCIAL METRICS EXTRACTION (Primary Statement):**
+
+**P&L Statement Fields:**
+* **`turnover`**: "Turnover", "Revenue", "Total income" from P&L header
 * **`operating_profit`**: "Operating profit" OR "Operating loss" (make losses negative)
-* **`net_income`**: "Profit/(loss) for the financial year" (preferred)
+* **`net_income`**: PRIORITY ORDER:
+  1. "Loss/Profit for the financial year" (preferred - operational result)
+  2. "Loss/Profit for the year"
+  3. "Net profit/loss"
+  4. "Total comprehensive loss/income" (backup only - includes revaluations)
+* **`profit_before_tax`**: "Profit/(loss) before taxation"
 * **`cost_of_sales`**: "Cost of sales"
 * **`gross_profit`**: "Gross profit"
 * **`gross_loss`**: "Gross loss" 
-* **`administrative_expenses`**: "Administrative expenses" (use TOTAL if split)
-* **`interest_receivable`**: "Interest receivable"
-* **`interest_payable`**: "Interest payable"
+* **`administrative_expenses`**: "Administrative expenses"
+* **`interest_receivable`**: "Interest receivable", "Interest income"
+* **`interest_payable`**: "Interest payable", "Interest expenses"
 * **`other_operating_income`**: "Other operating income"
 
-**4. FOOTBALL-SPECIFIC EXTRACTIONS:**
-* **`player_amortization`**: "Player amortisation", "Player amortisation and impairment" (negative)
-* **`profit_on_player_disposals`**: "Profit on disposal of registrations", "Profit on disposal of players"
-* **`matchday_revenue`**: "Gate receipts", "Match day income", "Season tickets"
-* **`broadcasting_revenue`**: "Broadcasting", "EFL distributions", "Media"
-* **`commercial_revenue`**: "Commercial", "Sponsorship", "Merchandising"
-* **`staff_costs_total`**: Total staff costs from notes
-* **`social_security_costs`**: "Social security costs"
-* **`pension_costs`**: "Pension costs"
-
-**5. BALANCE SHEET FIELDS:**
+**Balance Sheet Fields:**
+* **`total_assets`**: Use calculation process above
+* **`total_liabilities`**: Use calculation process above
+* **`net_assets`**: "Net assets" or "Net liabilities" (negative)
+* **`total_equity`**: "Total equity", "Total shareholder equity", same as net_assets
 * **`intangible_assets`**: "Intangible assets" (usually player registrations)
 * **`tangible_assets`**: "Tangible assets"
 * **`current_assets`**: "Current assets"
-* **`cash_at_bank`**: "Cash at bank and in hand"
+* **`stocks`**: "Stocks", "Inventories"
 * **`debtors`**: "Debtors"
-* **`creditors_due_within_one_year`**: "Creditors: amounts falling due within one year" (negative)
-* **`creditors_due_after_one_year`**: "Creditors: amounts falling due after more than one year" (negative)
+* **`cash_at_bank`**: "Cash at bank and in hand"
+* **`cash_and_cash_equivalents`**: "Cash and cash equivalents"
+* **`creditors_due_within_one_year`**: "Creditors: amounts falling due within one year" (make negative)
+* **`creditors_due_after_one_year`**: "Creditors: amounts falling due after more than one year" (make negative)
 
-**REQUIRED JSON FORMAT (NO OPERATING_EXPENSES):**
+**5. FOOTBALL-SPECIFIC EXTRACTIONS:**
+
+**Player-Related Metrics:**
+* **`player_amortization`**: "Player amortisation", "Amortisation of intangible assets", "Player amortisation and impairment" (make negative)
+* **`player_trading_income`**: "Profit on disposal of registrations", "Profit on disposal of players" (NOT revenue)
+* **`profit_on_player_disposals`**: Same as player_trading_income
+* **`player_wages`**: "Playing staff costs", "Players' remuneration" (if separately disclosed)
+
+**Revenue Breakdown (from Turnover Note):**
+* **`matchday_revenue`**: "Gate receipts", "Match receipts", "Match day income", "Season tickets", "Matchday"
+* **`broadcasting_revenue`**: "Broadcasting", "EFL distributions", "Central distributions", "Media", "Broadcasting and media"
+* **`commercial_revenue`**: "Commercial", "Sponsorship", "Merchandising", "Retail", "Other commercial"
+
+**Staff Costs (from Staff Costs Note):**
+* **`staff_costs_total`**: Total of all staff-related costs
+* **`social_security_costs`**: "Social security costs"
+* **`pension_costs`**: "Pension costs"
+
+**Other Operating Items:**
+* **`depreciation_charges`**: "Depreciation" charges
+* **`operating_lease_charges`**: "Operating lease" costs
+
+**Cash Flow (if available):**
+* **`operating_cash_flow`**: "Net cash from operating activities"
+* **`investing_cash_flow`**: "Net cash from investing activities"
+* **`financing_cash_flow`**: "Net cash from financing activities"
+
+**6. VALIDATION CHECKS:**
+* Revenue breakdown (matchday + broadcasting + commercial) should ≈ turnover (within 15%)
+* Player wages should be significant portion of total staff costs
+* Total staff costs usually 60-100% of turnover for football clubs
+* Balance sheet equation must balance
+* All figures should use consistent scale
+
+**7. ENTITY AND PERIOD IDENTIFICATION:**
+* **`company_name`**: The name of the football club or its legal entity
+* **`accounting_year_end`**: End date of financial period (format: "YYYY-MM-DD")
+
+**OUTPUT FORMAT:**
+Present extracted data in JSON object. If metric cannot be found, return `null` for that key.
+Based on analysis above, set most P&L fields to `null` if `is_abridged` is `true`.
+
+**REQUIRED JSON FORMAT:**
 {{
     "is_abridged": boolean_or_null,
+    "company_name": "string_or_null",
+    "accounting_year_end": "string_or_null",
     "turnover": number_or_null,
+  
     "operating_profit": number_or_null,
     "net_income": number_or_null,
-    "profit_loss_before_tax": number_or_null,
+    "profit_before_tax": number_or_null,
+    "profit_for_the_year": number_or_null,
     "matchday_revenue": number_or_null,
     "broadcasting_revenue": number_or_null,
     "commercial_revenue": number_or_null,
-    "player_amortization": number_or_null,
+    "player_trading_profit": number_or_null,
+    "player_amortisation": number_or_null,
+    "total_staff_costs": number_or_null,
+    "player_wages": number_or_null,
     "total_assets": number_or_null,
     "net_assets": number_or_null,
     "cash_at_bank": number_or_null,
@@ -507,6 +574,7 @@ If main turnover extraction works, look for breakdown in notes:
     "total_equity": number_or_null,
     "cash_and_cash_equivalents": number_or_null,
     "creditors_due_after_one_year": number_or_null,
+    "profit_loss_before_tax": number_or_null,
     "other_staff_costs": number_or_null,
     "stadium_costs": number_or_null,
     "administrative_expenses": number_or_null,
@@ -534,7 +602,7 @@ If main turnover extraction works, look for breakdown in notes:
     "financing_cash_flow": number_or_null
 }}"""
         
-        # OPTIMIZED: GPT-4 call with enhanced prompts
+        # EXPERT-LEVEL: Optimized GPT-4 call with enhanced prompts
         response = client.chat.completions.create(
             model=DEPLOYMENT,
             messages=[
@@ -542,7 +610,7 @@ If main turnover extraction works, look for breakdown in notes:
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.01,  # Extremely low for maximum consistency
-            max_tokens=2500,   # Increased for comprehensive response
+            max_tokens=2000,   # Increased for more comprehensive JSON response
             response_format={"type": "json_object"}
         )
         
@@ -553,22 +621,22 @@ If main turnover extraction works, look for breakdown in notes:
                    response_length=len(result_text),
                    estimated_cost_tokens=response.usage.total_tokens if hasattr(response, 'usage') else 'unknown')
         
-        # Parse and validate JSON response
+        # SIMPLIFIED: Parse and validate JSON response
         try:
             financial_dict = json.loads(result_text)
             
-            print(f"DEBUG - Before validation: turnover = {financial_dict.get('turnover')}")
-            print(f"DEBUG - Before validation: administrative_expenses = {financial_dict.get('administrative_expenses')}")
-            print(f"DEBUG - Before validation: player_amortization = {financial_dict.get('player_amortization')}")
+           
+            print(f"DEBUG - Before validation: net_income = {financial_dict.get('net_income')}")  
+            print(f"DEBUG - Before validation: total_equity = {financial_dict.get('total_equity')}")
             
-            # Validate extracted values make business sense
+            # ENHANCED: Validate extracted values make business sense
             validated_dict = validate_financial_data(financial_dict)
             
-            print(f"DEBUG - After validation: turnover = {validated_dict.get('turnover')}")
-            print(f"DEBUG - After validation: administrative_expenses = {validated_dict.get('administrative_expenses')}")
-            print(f"DEBUG - After validation: player_amortization = {validated_dict.get('player_amortization')}")
+       
+            print(f"DEBUG - After validation: net_income = {validated_dict.get('net_income')}")
+            print(f"DEBUG - After validation: total_equity = {validated_dict.get('total_equity')}")
             
-            # Create FinancialData object with validated values (NO operating_expenses)
+            # Create FinancialData object with validated values and document metadata
             result = FinancialData(
                 # Document metadata from detection
                 is_abridged=document_info["is_abridged"],
@@ -577,7 +645,7 @@ If main turnover extraction works, look for breakdown in notes:
                 # Financial data from extraction
                 revenue=validated_dict.get('revenue'),
                 turnover=validated_dict.get('turnover'),
-                # operating_expenses=validated_dict.get('operating_expenses'),  # REMOVED
+              
                 total_equity=validated_dict.get('total_equity'),               
                 net_income=validated_dict.get('net_income'),                  
                 total_assets=validated_dict.get('total_assets'),
@@ -622,18 +690,18 @@ If main turnover extraction works, look for breakdown in notes:
                 financing_cash_flow=validated_dict.get('financing_cash_flow'),
             )
             
-            print(f"DEBUG - Final result: turnover = {result.turnover}")
-            print(f"DEBUG - Final result: administrative_expenses = {result.administrative_expenses}")
-            print(f"DEBUG - Final result: player_amortization = {result.player_amortization}")
+       
+            print(f"DEBUG - Final result: net_income = {result.net_income}")
+            print(f"DEBUG - Final result: total_equity = {result.total_equity}")
             
             # Log successful extraction summary with document context
             extracted_fields = [k for k, v in validated_dict.items() if v is not None]
-            logger.info("Enhanced financial extraction successful",
+            logger.info("Financial extraction successful",
                        fields_extracted=len(extracted_fields),
                        extracted_fields=extracted_fields[:5],
                        is_abridged=document_info["is_abridged"],
                        document_type=document_info["document_type"],
-                       profit_loss_filed=document_info["profit_loss_filed"])
+                       profit_loss_filed=document_info["profit_loss_filed"])  # Enhanced logging
             
             return result
             
@@ -750,8 +818,7 @@ def detect_abridged_accounts(text: str) -> Dict[str, Any]:
 
 def validate_financial_data(financial_dict: Dict[str, Any]) -> Dict[str, Any]:
     """
-    ENHANCED: Validate extracted financial data for business logic consistency
-    with specific validation for your data patterns
+    Validate extracted financial data for business logic consistency
     """
     validated = {}
     
@@ -764,78 +831,43 @@ def validate_financial_data(financial_dict: Dict[str, Any]) -> Dict[str, Any]:
         try:
             numeric_value = float(value) if value != 0 else 0.0
             
-            # ENHANCED: Specific validation for your data patterns
-            if key == 'turnover':
-                # Championship clubs should have turnover 8M-150M
-                if numeric_value > 0 and numeric_value < 1000000:  # Less than 1M
-                    logger.warning(f"Turnover seems too low: {numeric_value:,} - possible scale issue")
-                elif numeric_value > 500000000:  # More than 500M
-                    logger.warning(f"Turnover seems too high: {numeric_value:,} - possible scale issue")
+            # Basic sanity checks for football club finances
+            if key in ['revenue', 'turnover', 'total_assets']:
+                # These should be positive for operating clubs
+                if numeric_value < 0:
+                    logger.warning(f"Unusual negative value for {key}: {numeric_value}")
                     
-            elif key == 'administrative_expenses':
-                # Should be negative for expenses
-                if numeric_value > 0:
-                    logger.warning(f"Administrative expenses should be negative: {numeric_value:,}")
-                    numeric_value = -abs(numeric_value)  # Force negative
+            elif key in ['total_liabilities', 'creditors_due_within_one_year']:
+                # These are typically positive (amounts owed)
+                if numeric_value < 0:
+                    logger.warning(f"Unusual negative liability for {key}: {numeric_value}")
                     
-            elif key == 'player_amortization':
-                # Should be negative (expense)
-                if numeric_value > 0:
-                    logger.warning(f"Player amortization should be negative: {numeric_value:,}")
-                    numeric_value = -abs(numeric_value)  # Force negative
-                    
-            elif key == 'cost_of_sales':
-                # Should be negative (expense)
-                if numeric_value > 0:
-                    logger.warning(f"Cost of sales should be negative: {numeric_value:,}")
-                    numeric_value = -abs(numeric_value)  # Force negative
-                    
-            elif key in ['creditors_due_within_one_year', 'creditors_due_after_one_year']:
-                # Should be negative (liabilities)
-                if numeric_value > 0:
-                    logger.warning(f"{key} should be negative: {numeric_value:,}")
-                    numeric_value = -abs(numeric_value)  # Force negative
-                    
-            elif key == 'operating_profit':
-                # Can be positive or negative - no change needed
+            elif key == 'cash_at_bank':
+                # Can be negative (overdraft) so no validation needed
                 pass
                 
-            # ENHANCED: Scale consistency check
-            if key in ['turnover', 'total_assets', 'administrative_expenses'] and abs(numeric_value) > 1000:
-                # These should be substantial amounts for Championship clubs
-                if abs(numeric_value) < 1000000:  # Less than 1M
-                    logger.info(f"{key} scale check: {numeric_value:,} - may need £'000 conversion")
-                    
+            # Range validation for football clubs
+            if key in ['revenue', 'turnover'] and numeric_value > 500000000:  # £500M+
+                logger.warning(f"Unusually high {key} for football club: {numeric_value}")
+                
             validated[key] = numeric_value
             
         except (ValueError, TypeError):
             logger.warning(f"Could not convert {key} value to number: {value}")
             validated[key] = None
     
-    # ENHANCED: Cross-field validation for your specific patterns
-    # Sheffield United pattern validation
-    turnover = validated.get('turnover')
-    admin_exp = validated.get('administrative_expenses')
-    player_amort = validated.get('player_amortization')
-    
-    if turnover and abs(turnover) > 30000000 and abs(turnover) < 35000000:  # ~32M like Sheffield United
-        logger.info("Detected Sheffield United pattern validation")
-        
-        if admin_exp and abs(admin_exp) < 10000000:  # Less than 10M
-            logger.warning(f"Admin expenses seem low for Sheffield United pattern: {admin_exp:,}")
-            
-        if player_amort and abs(player_amort) < 5000000:  # Less than 5M
-            logger.warning(f"Player amortization seems low: {player_amort:,}")
-    
     return validated
 
 
+
+
+        
 @router.post("/extract-financials", response_model=SkillResponse)
 async def extract_financials(request: SkillRequest):
     """
-    ENHANCED: Azure Search Custom Web API Skill endpoint with improved extraction
+    Azure Search Custom Web API Skill endpoint - handles TextSection objects
     """
-    print(f"DEBUG - Received enhanced extract-financials request with {len(request.values)} values")
+    print(f"DEBUG - Received extract-financials request with {len(request.values)} values")
     
     if not API_KEY:
         raise HTTPException(status_code=500, detail="Azure AI API key not configured")
@@ -868,13 +900,16 @@ async def extract_financials(request: SkillRequest):
             ))
             continue
         
-        # ENHANCED: Better whitespace detection and fallback
+        # ENHANCED: Fix for West Brom whitespace issue
         if text_content and (text_content.count('\n') > len(text_content) * 0.8 or len(text_content.strip()) < 100):
-            print(f"DEBUG - Content appears to be mostly whitespace, trying fallback")
+            print(f"DEBUG - Content appears to be mostly whitespace/newlines, trying text_sections fallback")
             if value.data.text_sections:
-                print(f"DEBUG - Attempting enhanced fallback extraction")
+                print(f"DEBUG - Attempting fallback extraction from {len(value.data.text_sections)} text sections")
                 text_content = extract_text_from_sections(value.data.text_sections)
                 print(f"DEBUG - Fallback extracted {len(text_content)} characters")
+                print(f"DEBUG - Fallback preview: {text_content[:200]}...")
+            else:
+                print(f"DEBUG - No text_sections available for fallback")
         
         if not text_content.strip():
             print(f"DEBUG - Empty text content for {record_id}")
@@ -886,7 +921,7 @@ async def extract_financials(request: SkillRequest):
             continue
         
         try:
-            print(f"DEBUG - Starting enhanced extraction for {record_id}")
+            print(f"DEBUG - Starting extraction for {record_id}")
             financial_data = await extract_financial_metrics_with_gpt4(text_content)
             
             results.append(RecordResult(
@@ -894,8 +929,7 @@ async def extract_financials(request: SkillRequest):
                 data=financial_data
             ))
             
-            print(f"DEBUG - Successfully extracted for {record_id}")
-            print(f"DEBUG - Key fields: turnover={financial_data.turnover}, admin_exp={financial_data.administrative_expenses}")
+            print(f"DEBUG - Successfully extracted for {record_id}: {financial_data}")
             
         except Exception as e:
             print(f"DEBUG - Error extracting for {record_id}: {e}")
@@ -905,13 +939,12 @@ async def extract_financials(request: SkillRequest):
                 errors=[RecordError(message=f"Extraction failed: {str(e)}")]
             ))
     
-    print(f"DEBUG - Returning {len(results)} enhanced results")
+    print(f"DEBUG - Returning {len(results)} results")
     return SkillResponse(values=results)
-
 
 @router.post("/test-extraction")
 async def test_extraction(request: InputData):
-    """ENHANCED: Test endpoint for development with better debugging"""
+    """Test endpoint for development"""
     
     if not API_KEY:
         raise HTTPException(status_code=500, detail="Azure AI API key not configured")
@@ -928,22 +961,19 @@ async def test_extraction(request: InputData):
     
     try:
         result = await extract_financial_metrics_with_gpt4(text_content)
-        print(f"DEBUG - Test result: turnover={result.turnover}, admin_exp={result.administrative_expenses}")
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Enhanced extraction failed: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 @router.get("/health")
 async def health_check():
-    """Health check for enhanced financial extraction service"""
+    """Health check for financial extraction service"""
     return {
         "status": "healthy",
-        "service": "enhanced-financial-extraction", 
+        "service": "financial-extraction", 
         "model": DEPLOYMENT,
         "endpoint": ENDPOINT,
-        "api_key_configured": bool(API_KEY),
-        "version": "enhanced-v2"
+        "api_key_configured": bool(API_KEY)
     }
     
     
@@ -959,7 +989,7 @@ async def health_check_comprehensive():
         
         return {
             "status": "healthy",
-            "service": "enhanced-comprehensive-document-processing",
+            "service": "comprehensive-document-processing",
             "document_intelligence": {
                 "endpoint": doc_service.endpoint,
                 "configured": bool(doc_service.key)
@@ -971,9 +1001,8 @@ async def health_check_comprehensive():
                 "document_intelligence": "available",
                 "text_cleaning": "available", 
                 "metadata_extraction": "available",
-                "enhanced_financial_extraction": "available"
-            },
-            "version": "enhanced-v2"
+                "financial_extraction": "available"
+            }
         }
         
     except Exception as e:
