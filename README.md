@@ -2,6 +2,7 @@
 
 Welcome to **Championship Clubs Finance**, a project designed to manage and analyze financial data for Championship Clubs. This repository provides tools and scripts for financial operations, reporting, and analytics tailored for league organizations.
 
+
 ## Features
 
 - **Financial Data Management**: Import, store, and organize financial records for teams and league operations.
@@ -16,6 +17,8 @@ The language composition for this repository includes:
 - **JavaScript**: Frontend interactivity and visualization.
 - **HTML/CSS**: User interface components.
 - **Shell Scripts**: Automation and deployment scripts.
+- This project is self-hosted in my Pi home lab.
+- Content management for this project is handled via a self-hosted Strapi CMS.
 
 ## Getting Started
 
