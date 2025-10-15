@@ -1,6 +1,6 @@
-# National League Finance
+# Championship Clubs Finance
 
-Welcome to **National League Finance**, a project designed to manage and analyze financial data for the National League. This repository provides tools and scripts for financial operations, reporting, and analytics tailored for league organizations.
+Welcome to **Championship Clubs Finance**, a project designed to manage and analyze financial data for Championship Clubs. This repository provides tools and scripts for financial operations, reporting, and analytics tailored for league organizations.
 
 ## Features
 
